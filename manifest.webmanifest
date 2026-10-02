@@ -1,19 +1,21 @@
 {
-  "id": "./",
-  "name": "RGSERVE DTR & Payroll",
-  "short_name": "RGSERVE DTR",
-  "description": "Personal DTR and payroll dashboard",
+  "name": "RGSERVE DTR System",
+  "short_name": "RGSERVE",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
-  "background_color": "#080b11",
-  "theme_color": "#080b11",
+  "background_color": "#0f172a",
+  "theme_color": "#0f172a",
   "icons": [
     {
-      "src": "./icons/dtr-icon.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
-      "purpose": "any"
+      "src": "https://via.placeholder.com/192/0f172a/ffffff?text=DTR",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "https://via.placeholder.com/512/0f172a/ffffff?text=DTR",
+      "sizes": "512x512",
+      "type": "image/png"
     }
   ]
 }
