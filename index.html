@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RGSERVE DTR & Payroll System - Ultra Transparent Edition</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Consolas', 'Fira Code', 'Monaco', 'Segoe UI', monospace;
+    }
+
+    html, body {
+      width: 100%;
+      min-height: 100vh;
+    }
+
+    body {
+      background: linear-gradient(rgba(0, 0, 0, 0.25), rgba(0, 0, 0, 0.35)), 
+                  url('kali.jpg') no-repeat center center fixed;
+      background-size: cover;
+      color: #ffffff;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 15px 20px;
+      margin-bottom: 25px;
+      background: rgba(10, 15, 25, 0.20);
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.4);
+    }
+
+    h1 {
+      color: #00f2fe;
+      font-size: 24px;
+      letter-spacing: 1px;
+      text-shadow: 0 0 12px rgba(0, 242, 254, 0.8);
+    }
+
+    .clock-display {
+      font-size: 18px;
+      font-weight: bold;
+      color: #00ff87;
+      background: rgba(0, 0, 0, 0.35);
+      padding: 8px 16px;
+      border-radius: 8px;
+      border: 1px solid rgba(0, 255, 135, 0.5);
+      box-shadow: 0 0 15px rgba(0, 255, 135, 0.3);
+      backdrop-filter: blur(6px);
+      text-shadow: 0 0 8px rgba(0, 255, 135, 0.6);
+    }
+
+    .dashboard-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 15px;
+      margin-bottom: 25px;
+    }
+
+    .card {
+      background: rgba(10, 15, 25, 0.18);
+      padding: 18px;
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      transition: transform 0.2s, border-color 0.2s, background 0.2s;
+    }
+
+    .card:hover {
+      border-color: rgba(0, 242, 254, 0.7);
+      background: rgba(10, 15, 25, 0.30);
+      transform: translateY(-3px);
+    }
+
+    .card h3 {
+      font-size: 11px;
+      color: #b0bac5;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+      letter-spacing: 1px;
+      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+    }
+
+    .card .value {
+      font-size: 22px;
+      font-weight: bold;
+      color: #ffffff;
+      text-shadow: 0 2px 5px rgba(0, 0, 0, 0.8);
+    }
+
+    .main-content {
+      display: grid;
+      grid-template-columns: 340px 1fr;
+      gap: 20px;
+    }
+
+    @media (max-width: 850px) {
+      .main-content {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .form-section, .table-section {
+      background: rgba(10, 15, 25, 0.20);
+      padding: 22px;
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.45);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+    }
+
+    .form-section h2, .table-section h2 {
+      font-size: 18px;
+      margin-bottom: 18px;
+      color: #00f2fe;
+      border-left: 4px solid #00f2fe;
+      padding-left: 10px;
+      text-shadow: 0 0 10px rgba(0, 242, 254, 0.6);
+    }
+
+    .label-text {
+      display: block;
+      font-size: 11px;
+      color: #d0d7de;
+      margin-top: 14px;
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
+    }
+
+    input, select {
+      width: 100%;
+      padding: 10px 12px;
+      background: rgba(0, 0, 0, 0.35);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      color: #00f2fe;
+      border-radius: 6px;
+      font-size: 14px;
+      outline: none;
+      backdrop-filter: blur(5px);
+      transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+    }
+
+    input:focus, select:focus {
+      background: rgba(0, 0, 0, 0.55);
+      border-color: #00f2fe;
+      box-shadow: 0 0 12px rgba(0, 242, 254, 0.5);
+    }
+
+    select option {
+      background: #0d1117;
+      color: #00f2fe;
+    }
+
+    .shift-presets {
+      display: flex;
+      gap: 6px;
+      margin-top: 10px;
+    }
+
+    .preset-btn {
+      flex: 1;
+      background: rgba(255, 255, 255, 0.1);
+      color: #ffffff;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      padding: 7px 4px;
+      border-radius: 6px;
+      font-size: 10px;
+      cursor: pointer;
+      backdrop-filter: blur(4px);
+      transition: background 0.2s, border-color 0.2s;
+    }
+
+    .preset-btn:hover {
+      background: rgba(0, 242, 254, 0.25);
+      border-color: #00f2fe;
+      color: #fff;
+    }
+
+    .btn {
+      width: 100%;
+      padding: 12px;
+      border: none;
+      border-radius: 6px;
+      font-weight: bold;
+      cursor: pointer;
+      margin-top: 18px;
+      transition: opacity 0.2s, box-shadow 0.2s, transform 0.1s;
+    }
+
+    .btn-save {
+      background: #00f2fe;
+      color: #0d1117;
+      box-shadow: 0 0 15px rgba(0, 242, 254, 0.5);
+    }
+
+    .btn-save:hover {
+      opacity: 0.9;
+      box-shadow: 0 0 22px rgba(0, 242, 254, 0.8);
+      transform: scale(1.01);
+    }
+
+    .btn-export {
+      background: #00ff87;
+      color: #0d1117;
+      width: auto;
+      padding: 8px 16px;
+      font-size: 12px;
+      font-weight: bold;
+      border-radius: 6px;
+      box-shadow: 0 0 10px rgba(0, 255, 135, 0.4);
+    }
+
+    .btn-export:hover {
+      box-shadow: 0 0 18px rgba(0, 255, 135, 0.7);
+    }
+
+    .table-header-actions {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 15px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    th, td {
+      padding: 12px;
+      text-align: left;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+    }
+
+    th {
+      background: rgba(0, 0, 0, 0.3);
+      color: #00f2fe;
+      font-weight: 600;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    tr:hover {
+      background: rgba(255, 255, 255, 0.12);
+    }
+
+    .badge-shift {
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: bold;
+      letter-spacing: 0.5px;
+    }
+
+    .badge-am {
+      background: rgba(255, 193, 7, 0.25);
+      color: #ffc107;
+      border: 1px solid #ffc107;
+    }
+
+    .badge-pm {
+      background: rgba(156, 39, 176, 0.25);
+      color: #e040fb;
+      border: 1px solid #e040fb;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <header>
+      <div>
+        <h1>RGSERVE DTR System</h1>
+        <small style="color: #d0d7de; text-shadow: 0 1px 3px rgba(0,0,0,0.9);">Daily Time Record & Automated Payroll Computation</small>
+      </div>
+      <div class="clock-display" id="liveClock">00:00:00 AM</div>
+    </header>
+
+    <!-- DASHBOARD SUMMARY CARDS -->
+    <div class="dashboard-grid">
+      <div class="card">
+        <h3>Total Logs Today</h3>
+        <div class="value" id="totalLogs">0</div>
+      </div>
+      <div class="card">
+        <h3>Time In Today</h3>
+        <div class="value" id="timeInCount" style="color: #00ff87;">0</div>
+      </div>
+      <div class="card">
+        <h3>Time Out Today</h3>
+        <div class="value" id="timeOutCount" style="color: #ff5f56;">0</div>
+      </div>
+      <div class="card" style="grid-column: span 2;">
+        <h3>Payroll Overview</h3>
+        <div class="value" id="payrollOverview" style="font-size: 14px; color: #00f2fe; margin-top: 5px;">
+          Est. Total Work: 0 hrs | Total Computed Pay: ₱0.00
+        </div>
+      </div>
+    </div>
+
+    <!-- MAIN INTERFACE -->
+    <div class="main-content">
+      
+      <!-- FORM SECTION -->
+      <div class="form-section">
+        <h2>Log Entry</h2>
+        <form id="dtrForm">
+          <label class="label-text">Employee Name</label>
+          <input type="text" id="employeeName" placeholder="Enter Full Name" required>
+
+          <label class="label-text">Work Shift</label>
+          <select id="workShift" required>
+            <option value="AM">AM Shift (Day)</option>
+            <option value="PM">PM Shift (Night)</option>
+          </select>
+
+          <label class="label-text">Log Type</label>
+          <select id="logType" required>
+            <option value="IN">TIME IN</option>
+            <option value="OUT">TIME OUT</option>
+          </select>
+
+          <label class="label-text">Date & Time</label>
+          <input type="datetime-local" id="logTimestamp">
+
+          <div class="shift-presets">
+            <button type="button" class="preset-btn" onclick="setPresetTime('now')">Current Time</button>
+            <button type="button" class="preset-btn" onclick="setPresetTime('am')">06:00 AM Shift</button>
+            <button type="button" class="preset-btn" onclick="setPresetTime('pm')">06:00 PM Shift</button>
+          </div>
+
+          <button type="submit" class="btn btn-save" id="btnSubmit">Save Log</button>
+
+          <!-- STATUS ALERT NOTIFICATION BOX -->
+          <div id="statusAlert" style="display: none; margin-top: 15px; padding: 10px; border-radius: 8px; font-size: 12px; font-weight: 500; text-align: center; backdrop-filter: blur(8px);"></div>
+        </form>
+      </div>
+
+      <!-- TABLE SECTION -->
+      <div class="table-section">
+        <div class="table-header-actions">
+          <h2>Completed Shift Logs</h2>
+          <button class="btn btn-export" onclick="exportDTR()">Export to CSV</button>
+        </div>
+
+        <div style="overflow-x: auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>Employee</th>
+                <th>Shift</th>
+                <th>Date</th>
+                <th>Time In</th>
+                <th>Time Out</th>
+                <th>Total Work (OT)</th>
+                <th>Computed Pay</th>
+              </tr>
+            </thead>
+            <tbody id="dtrTableBody">
+              <!-- Completed Logs dynamically rendered here -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>6
