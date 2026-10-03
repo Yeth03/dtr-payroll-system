@@ -7,18 +7,52 @@ function updateClock() {
   }
 }
 setInterval(updateClock, 1000);
-updateClock();
 
-// 2. Set Default Month sa Filter (Kasalukuyang Buwan)
-window.addEventListener('DOMContentLoaded', () => {
+// 2. Initial Setup pagka-load ng Page
+document.addEventListener('DOMContentLoaded', () => {
+  updateClock();
+  
+  // Set Current Month sa Filter
   const today = new Date();
   const currentMonthStr = today.toISOString().slice(0, 7); // YYYY-MM
   const monthFilter = document.getElementById('filterMonth');
   if (monthFilter) {
     monthFilter.value = currentMonthStr;
   }
+  
   setPresetTime('now');
   renderTable();
+
+  // Attach Form Submit Listener
+  const dtrForm = document.getElementById('dtrForm');
+  if (dtrForm) {
+    dtrForm.addEventListener('submit', function(e) {
+      e.preventDefault();
+      
+      const name = document.getElementById('employeeName').value.trim();
+      const shift = document.getElementById('workShift').value;
+      const type = document.getElementById('logType').value;
+      const timestamp = document.getElementById('logTimestamp').value;
+
+      if (!name || !timestamp) {
+        alert('Paki-punan ang pangalan at petsa/oras!');
+        return;
+      }
+
+      const logs = getLogs();
+      logs.push({
+        id: Date.now(),
+        name: name,
+        shift: shift,
+        type: type,
+        timestamp: timestamp
+      });
+
+      saveLogs(logs);
+      showAlert('Na-save nang matagumpay!');
+      renderTable();
+    });
+  }
 });
 
 // 3. Preset Time Buttons (Now, 6 AM, 6 PM)
@@ -50,37 +84,7 @@ function saveLogs(logs) {
   localStorage.setItem('rgserve_dtr_logs', JSON.stringify(logs));
 }
 
-// 5. Submit Event Handler (Pag-save ng Bagong Log)
-const dtrForm = document.getElementById('dtrForm');
-if (dtrForm) {
-  dtrForm.addEventListener('submit', function(e) {
-    e.preventDefault();
-    const name = document.getElementById('employeeName').value.trim();
-    const shift = document.getElementById('workShift').value;
-    const type = document.getElementById('logType').value;
-    const timestamp = document.getElementById('logTimestamp').value;
-
-    if (!name || !timestamp) {
-      alert('Paki-punan ang pangalan at petsa/oras!');
-      return;
-    }
-
-    const logs = getLogs();
-    logs.push({
-      id: Date.now(),
-      name,
-      shift,
-      type,
-      timestamp
-    });
-
-    saveLogs(logs);
-    showAlert('Na-save nang matagumpay ang log!');
-    renderTable();
-  });
-}
-
-// 6. Notification Alert Popup
+// 5. Notification Alert Popup
 function showAlert(msg) {
   const alertBox = document.getElementById('statusAlert');
   if (alertBox) {
@@ -92,13 +96,13 @@ function showAlert(msg) {
   }
 }
 
-// 7. Pag-oorganisa ng Time IN at Time OUT para sa Hours & Pay Computation
+// 6. Pag-oorganisa ng Time IN at Time OUT para sa Hours & Pay Computation
 function processLogs() {
   const rawLogs = getLogs();
   const paired = [];
   const inMap = {};
 
-  // Ayusin ayon sa oras
+  // Sort ayon sa oras
   rawLogs.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
 
   rawLogs.forEach(log => {
@@ -113,8 +117,7 @@ function processLogs() {
       const diffMs = timeOut - timeIn;
       const hoursWorked = diffMs > 0 ? (diffMs / (1000 * 60 * 60)).toFixed(2) : 0;
       
-      // Baguhin ang Hourly Rate batay sa inyong rate (halimbawa: ₱80 per hour)
-      const hourlyRate = 80; 
+      const hourlyRate = 80; // Baguhin ang hourly rate dito kung kailangan
       const computedPay = (hoursWorked * hourlyRate).toFixed(2);
 
       paired.push({
@@ -134,7 +137,7 @@ function processLogs() {
   return paired;
 }
 
-// 8. Table Rendering na may Filter ng Cut-off Period (1-15 / 16-31)
+// 7. Table Rendering na may Filter ng Cut-off Period (1-15 / 16-31)
 function renderTable() {
   const selectedMonthElem = document.getElementById('filterMonth');
   const cutoffElem = document.getElementById('filterCutoff');
@@ -154,9 +157,8 @@ function renderTable() {
   let totalOutToday = 0;
 
   const todayStr = new Date().toISOString().split('T')[0];
-
-  // Kuhanin din ang kabuuang logs ngayong araw para sa Summary Cards
   const rawLogs = getLogs();
+
   rawLogs.forEach(l => {
     if (l.timestamp.startsWith(todayStr)) {
       if (l.type === 'IN') totalInToday++;
@@ -164,7 +166,6 @@ function renderTable() {
     }
   });
 
-  // I-update ang Summary Cards
   const totalLogsElem = document.getElementById('totalLogs');
   const timeInElem = document.getElementById('timeInCount');
   const timeOutElem = document.getElementById('timeOutCount');
@@ -173,7 +174,7 @@ function renderTable() {
   if (timeInElem) timeInElem.textContent = totalInToday;
   if (timeOutElem) timeOutElem.textContent = totalOutToday;
 
-  // I-filter ang mga log batay sa napiling Buwan at Cut-off Period
+  // Filter batay sa Buwan at Cut-off
   const filtered = allPaired.filter(item => {
     if (!item.date) return false;
     const [year, month, day] = item.date.split('-').map(Number);
@@ -193,7 +194,7 @@ function renderTable() {
   });
 
   if (filtered.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: #b0bac5;">Walang nahanap na log para sa napiling cut-off.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: #b0bac5; padding: 15px;">Walang logs para sa napiling cut-off.</td></tr>`;
   } else {
     filtered.forEach(log => {
       totalHoursSum += parseFloat(log.hoursWorked);
@@ -213,15 +214,14 @@ function renderTable() {
     });
   }
 
-  // I-update ang Payroll Overview Card
   const payrollOverview = document.getElementById('payrollOverview');
   if (payrollOverview) {
     payrollOverview.textContent = 
-      `Est. Total Work: ${totalHoursSum.toFixed(2)} hrs | Total Computed Pay: ₱${totalPaySum.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
+      `Est. Work: ${totalHoursSum.toFixed(2)} hrs | Pay: ₱${totalPaySum.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
   }
 }
 
-// 9. Export filtered logs to CSV
+// 8. Export filtered logs to CSV
 function exportDTR() {
   const allPaired = processLogs();
   if (allPaired.length === 0) {
