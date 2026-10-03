@@ -2,12 +2,10 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <!-- FIX 1: Zoom Out sa Mobile Screen (0.8 scale) -->
   <meta name="viewport" content="width=device-width, initial-scale=0.8, maximum-scale=1.0, user-scalable=yes">
   <title>RGSERVE DTR & Payroll System - Ultra Transparent Edition</title>
   
   <style>
-    /* FIX 2: Anti-Lag & Mobile Performance Optimizations */
     html, body {
       width: 100%;
       min-height: 100vh;
@@ -17,7 +15,6 @@
       touch-action: manipulation;
     }
 
-    /* Tinatanggal ang mabibigat na shadows at transitions para maging mabilis sa CP */
     * {
       box-sizing: border-box;
       margin: 0;
@@ -88,11 +85,6 @@
       -webkit-backdrop-filter: blur(8px);
     }
 
-    .card:hover {
-      border-color: rgba(0, 242, 254, 0.7);
-      background: rgba(10, 15, 25, 0.30);
-    }
-
     .card h3 {
       font-size: 11px;
       color: #b0bac5;
@@ -158,11 +150,6 @@
       backdrop-filter: blur(5px);
     }
 
-    input:focus, select:focus {
-      background: rgba(0, 0, 0, 0.55);
-      border-color: #00f2fe;
-    }
-
     select option {
       background: #0d1117;
       color: #00f2fe;
@@ -183,13 +170,6 @@
       border-radius: 6px;
       font-size: 10px;
       cursor: pointer;
-      backdrop-filter: blur(4px);
-    }
-
-    .preset-btn:hover {
-      background: rgba(0, 242, 254, 0.25);
-      border-color: #00f2fe;
-      color: #fff;
     }
 
     .btn {
@@ -207,10 +187,6 @@
       color: #0d1117;
     }
 
-    .btn-save:hover {
-      opacity: 0.9;
-    }
-
     .btn-export {
       background: #00ff87;
       color: #0d1117;
@@ -221,11 +197,37 @@
       border-radius: 6px;
     }
 
+    .filter-container {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 15px;
+      background: rgba(0, 0, 0, 0.25);
+      padding: 12px;
+      border-radius: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .filter-item {
+      flex: 1;
+      min-width: 140px;
+    }
+
+    .filter-item label {
+      font-size: 10px;
+      color: #b0bac5;
+      display: block;
+      margin-bottom: 4px;
+      text-transform: uppercase;
+    }
+
     .table-header-actions {
       display: flex;
       justify-content: space-between;
       align-items: center;
       margin-bottom: 15px;
+      flex-wrap: wrap;
+      gap: 10px;
     }
 
     table {
@@ -246,31 +248,10 @@
       font-weight: 600;
       font-size: 11px;
       text-transform: uppercase;
-      letter-spacing: 0.5px;
     }
 
     tr:hover {
       background: rgba(255, 255, 255, 0.12);
-    }
-
-    .badge-shift {
-      padding: 3px 8px;
-      border-radius: 4px;
-      font-size: 10px;
-      font-weight: bold;
-      letter-spacing: 0.5px;
-    }
-
-    .badge-am {
-      background: rgba(255, 193, 7, 0.25);
-      color: #ffc107;
-      border: 1px solid #ffc107;
-    }
-
-    .badge-pm {
-      background: rgba(156, 39, 176, 0.25);
-      color: #e040fb;
-      border: 1px solid #e040fb;
     }
   </style>
 </head>
@@ -300,7 +281,7 @@
         <div class="value" id="timeOutCount" style="color: #ff5f56;">0</div>
       </div>
       <div class="card" style="grid-column: span 2;">
-        <h3>Payroll Overview</h3>
+        <h3>Payroll Overview (Filtered Cut-off)</h3>
         <div class="value" id="payrollOverview" style="font-size: 14px; color: #00f2fe; margin-top: 5px;">
           Est. Total Work: 0 hrs | Total Computed Pay: ₱0.00
         </div>
@@ -339,17 +320,31 @@
           </div>
 
           <button type="submit" class="btn btn-save" id="btnSubmit">Save Log</button>
-
-          <!-- STATUS ALERT NOTIFICATION BOX -->
           <div id="statusAlert" style="display: none; margin-top: 15px; padding: 10px; border-radius: 8px; font-size: 12px; font-weight: 500; text-align: center; backdrop-filter: blur(8px);"></div>
         </form>
       </div>
 
-      <!-- TABLE SECTION -->
+      <!-- TABLE & CUT-OFF FILTER SECTION -->
       <div class="table-section">
         <div class="table-header-actions">
-          <h2>Completed Shift Logs</h2>
-          <button class="btn btn-export" onclick="exportDTR()">Export to CSV</button>
+          <h2>View Logs & Payroll</h2>
+          <button class="btn btn-export" onclick="exportDTR()">Export Filtered CSV</button>
+        </div>
+
+        <!-- CUT-OFF & MONTH FILTER CONTROLS -->
+        <div class="filter-container">
+          <div class="filter-item">
+            <label>Select Month & Year</label>
+            <input type="month" id="filterMonth" onchange="renderTable()">
+          </div>
+          <div class="filter-item">
+            <label>Cut-off Period</label>
+            <select id="filterCutoff" onchange="renderTable()">
+              <option value="ALL">All Days (Whole Month)</option>
+              <option value="1-15">1st Cut-off (1 - 15)</option>
+              <option value="16-31">2nd Cut-off (16 - 30/31)</option>
+            </select>
+          </div>
         </div>
 
         <div style="overflow-x: auto;">
@@ -366,7 +361,7 @@
               </tr>
             </thead>
             <tbody id="dtrTableBody">
-              <!-- Completed Logs dynamically rendered here -->
+              <!-- Logs dynamically rendered here -->
             </tbody>
           </table>
         </div>
