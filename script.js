@@ -23,7 +23,7 @@ document.addEventListener('DOMContentLoaded', () => {
   setPresetTime('now');
   renderTable();
 
-  // Attach Form Submit Listener
+  // Attach Form Submit Listener with Save Animations
   const dtrForm = document.getElementById('dtrForm');
   if (dtrForm) {
     dtrForm.addEventListener('submit', function(e) {
@@ -41,7 +41,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
 
-      // Visual Effect 1: Button Loading State
+      // Visual Effect: Button Loading State
       btn.style.pointerEvents = 'none';
       if (btnText) btnText.textContent = 'Saving... ⏳';
 
@@ -61,9 +61,9 @@ document.addEventListener('DOMContentLoaded', () => {
         btn.style.pointerEvents = 'auto';
         if (btnText) btnText.textContent = 'Save Log';
 
-        // Toast Notification Popup
+        // Toast Notification Popup (English)
         showToast(`Log saved successfully for ${name}!`, 'success');
-        if (navigator.vibrate) navigator.vibrate(50);
+        if (navigator.vibrate) navigator.vibrate(50); // Haptic vibration
 
         renderTable(true); // Re-render table and highlight
       }, 300);
@@ -126,15 +126,15 @@ function showToast(msg, type = 'success') {
   }, 2500);
 }
 
-// 6. IMPORVED LOG PROCESSING (FIFO Matching for Cross-Day / Night Shifts)
+// 6. LOG PROCESSING WITH BASIC RATE (₱755/day = ₱94.375/hr)
 function processLogs() {
   const rawLogs = getLogs();
   const paired = [];
   
-  // I-sort ang mga logs ayon sa oras/petsa
+  // Sort logs chronologically
   rawLogs.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
 
-  // I-group ang logs kada Employee Name
+  // Group logs per employee
   const employeeLogs = {};
   rawLogs.forEach(log => {
     const key = log.name.toLowerCase().trim();
@@ -142,14 +142,14 @@ function processLogs() {
     employeeLogs[key].push(log);
   });
 
-  // I-pair ang IN at OUT bawat empleyado
+  // Pair IN and OUT per employee
   Object.keys(employeeLogs).forEach(emp => {
     const logs = employeeLogs[emp];
     let currentIn = null;
 
     logs.forEach(log => {
       if (log.type === 'IN') {
-        currentIn = log; // Tandaan ang pinakahuling TIME IN
+        currentIn = log;
       } else if (log.type === 'OUT' && currentIn) {
         const timeIn = new Date(currentIn.timestamp);
         const timeOut = new Date(log.timestamp);
@@ -157,7 +157,9 @@ function processLogs() {
         const diffMs = timeOut - timeIn;
         const hoursWorked = diffMs > 0 ? (diffMs / (1000 * 60 * 60)).toFixed(2) : 0;
         
-        const hourlyRate = 80; // Rate kada oras (₱80/hr)
+        // BASIC RATE CONFIGURATION
+        const dailyRate = 755;           // ₱755 Basic Rate per day
+        const hourlyRate = dailyRate / 8; // ₱94.375 per hour
         const computedPay = (hoursWorked * hourlyRate).toFixed(2);
 
         const dateStr = currentIn.timestamp.split('T')[0];
@@ -173,7 +175,7 @@ function processLogs() {
           computedPay: computedPay
         });
 
-        currentIn = null; // Reset pagkatapos maipares
+        currentIn = null; // Reset after successful pair
       }
     });
   });
