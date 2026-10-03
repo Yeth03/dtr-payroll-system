@@ -30,7 +30,7 @@
                   url('kali.jpg') no-repeat center center fixed;
       background-size: cover;
       color: #ffffff;
-      padding: 10px; /* Binawasan mula 20px */
+      padding: 10px;
     }
 
     .container {
@@ -54,7 +54,7 @@
 
     h1 {
       color: #00f2fe;
-      font-size: 18px; /* Binawasan mula 24px */
+      font-size: 18px;
       letter-spacing: 0.5px;
     }
 
@@ -70,7 +70,7 @@
 
     .dashboard-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); /* Mas maliit na cards */
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
       gap: 10px;
       margin-bottom: 15px;
     }
@@ -100,7 +100,7 @@
 
     .main-content {
       display: grid;
-      grid-template-columns: 280px 1fr; /* Binawasan ang lapad ng form */
+      grid-template-columns: 280px 1fr;
       gap: 12px;
     }
 
@@ -228,7 +228,6 @@
       gap: 8px;
     }
 
-    /* Pinakamasinsin na Table Layout para sa CP */
     .table-wrapper {
       width: 100%;
       overflow-x: auto;
@@ -238,12 +237,12 @@
     table {
       width: 100%;
       border-collapse: collapse;
-      font-size: 11px; /* Mas maliit na font sa table */
-      white-space: nowrap; /* Iwas patong-patong ng text */
+      font-size: 11px;
+      white-space: nowrap;
     }
 
     th, td {
-      padding: 7px 8px; /* Binawasan ang space sa bawat cell */
+      padding: 7px 8px;
       text-align: left;
       border-bottom: 1px solid rgba(255, 255, 255, 0.15);
     }
@@ -259,6 +258,15 @@
     tr:hover {
       background: rgba(255, 255, 255, 0.12);
     }
+
+    .badge-shift {
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 9px;
+      font-weight: bold;
+    }
+    .badge-am { background: rgba(0, 242, 254, 0.2); color: #00f2fe; }
+    .badge-pm { background: rgba(255, 95, 86, 0.2); color: #ff5f56; }
   </style>
 </head>
 <body>
@@ -317,7 +325,7 @@
           </select>
 
           <label class="label-text">Date & Time</label>
-          <input type="datetime-local" id="logTimestamp">
+          <input type="datetime-local" id="logTimestamp" required>
 
           <div class="shift-presets">
             <button type="button" class="preset-btn" onclick="setPresetTime('now')">Current Time</button>
