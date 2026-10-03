@@ -127,7 +127,22 @@ function processCompletedShifts(logs) {
 
     if (shiftGroup.inLog && shiftGroup.outLog) {
       const inTime = new Date(shiftGroup.inLog.created_at);
-      const outTime = new Date(shiftGroup.outLog.created_at);
+      let outTime = new Date(shiftGroup.outLog.created_at);
+
+      // STRICT 15-MINUTE UNAUTHORIZED OVERTIME CAPPING RULE
+      // Kapag nag-Time Out nang lagpas sa shift end (e.g. 5:00 PM) nang mababa sa 15 mins (e.g., 5:01 PM - 5:14 PM),
+      // ipinapantay ito sa official shift end para walang dagdag na pay.
+      const officialEnd = new Date(inTime);
+      if (shiftGroup.shift === 'PM') {
+        officialEnd.setHours(18, 0, 0, 0); // Official end for PM shift
+      } else {
+        officialEnd.setHours(17, 0, 0, 0); // Official 5:00 PM end for AM shift
+      }
+
+      const diffMinutes = (outTime - officialEnd) / (1000 * 60);
+      if (diffMinutes > 0 && diffMinutes < 15) {
+        outTime = officialEnd;
+      }
 
       let diffMs = outTime - inTime;
       let rawTotalHours = Math.max(0, diffMs / (1000 * 60 * 60));
@@ -140,9 +155,7 @@ function processCompletedShifts(logs) {
       const regHours = Math.min(REGULAR_HOURS, rawTotalHours);
       let rawOtHours = Math.max(0, rawTotalHours - REGULAR_HOURS);
 
-      // STRICT 30-MIN THRESHOLD RULE:
-      // KAPAG MABABA SA 30 MINS (0.5 hrs) ANG OT: 
-      // -> Walang OT Pay at ang total calculated hours ay mananatiling 8.00 hrs (₱755.00).
+      // STRICT 30-MIN THRESHOLD RULE FOR PAYABLE OT:
       let payableOtHours = 0;
       if (rawOtHours >= 0.5) {
         payableOtHours = rawOtHours;
