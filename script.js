@@ -1,3 +1,7 @@
+// ==========================================
+// RGSERVE DTR & PAYROLL SYSTEM - SCRIPT.JS
+// ==========================================
+
 // DAILY RATE CONFIGURATION (₱755 per day)
 const DAILY_RATE = 755; 
 const REGULAR_HOURS = 8; 
@@ -6,6 +10,7 @@ const OT_RATE = HOURLY_RATE * 1.25; // 125% Overtime rate (₱117.97 per OT hour
 
 const STORAGE_KEY = 'rgserve_dtr_logs';
 
+// INITIALIZATION ON PAGE LOAD
 document.addEventListener('DOMContentLoaded', () => {
   initClock();
   setDefaultTimestamp();
@@ -129,21 +134,6 @@ function processCompletedShifts(logs) {
       const inTime = new Date(shiftGroup.inLog.created_at);
       let outTime = new Date(shiftGroup.outLog.created_at);
 
-      // STRICT 15-MINUTE UNAUTHORIZED OVERTIME CAPPING RULE
-      // Kapag nag-Time Out nang lagpas sa shift end (e.g. 5:00 PM) nang mababa sa 15 mins (e.g., 5:01 PM - 5:14 PM),
-      // ipinapantay ito sa official shift end para walang dagdag na pay.
-      const officialEnd = new Date(inTime);
-      if (shiftGroup.shift === 'PM') {
-        officialEnd.setHours(18, 0, 0, 0); // Official end for PM shift
-      } else {
-        officialEnd.setHours(17, 0, 0, 0); // Official 5:00 PM end for AM shift
-      }
-
-      const diffMinutes = (outTime - officialEnd) / (1000 * 60);
-      if (diffMinutes > 0 && diffMinutes < 15) {
-        outTime = officialEnd;
-      }
-
       let diffMs = outTime - inTime;
       let rawTotalHours = Math.max(0, diffMs / (1000 * 60 * 60));
 
@@ -155,15 +145,21 @@ function processCompletedShifts(logs) {
       const regHours = Math.min(REGULAR_HOURS, rawTotalHours);
       let rawOtHours = Math.max(0, rawTotalHours - REGULAR_HOURS);
 
-      // STRICT 30-MIN THRESHOLD RULE FOR PAYABLE OT:
-      let payableOtHours = 0;
-      if (rawOtHours >= 0.5) {
+      // EKS AKTONG 6:30 OT RULE FOR SHIFTING:
+      // Kukunin ang base OT hours (e.g., sa 12 hrs shift, base OT ay 3.0 hrs).
+      // Ang excess minutes ay ang minuto lagpas sa 6:00 PM/AM.
+      let baseOtHours = Math.floor(rawOtHours); 
+      let excessMinutes = (rawOtHours - baseOtHours) * 60;
+
+      let payableOtHours = baseOtHours;
+
+      // KAPAG DUMATING/LUMAMPAS NG 30 MINUTES (6:30 PM/AM PATAAS):
+      // Saka lang isasama at idadagdag sa sahod ang mga minuto lagpas ng 6:00.
+      if (excessMinutes >= 30) {
         payableOtHours = rawOtHours;
       }
 
-      // Total rendered hours for payroll calculation
       const computedTotalHours = regHours + payableOtHours;
-
       const regularPay = (regHours / REGULAR_HOURS) * DAILY_RATE;
       const otPay = payableOtHours * OT_RATE;
       const totalPay = regularPay + otPay;
@@ -191,7 +187,7 @@ function processCompletedShifts(logs) {
   return { completedShifts, globalTotalHours, globalTotalPay };
 }
 
-// RENDER TABLE
+// RENDER COMPLETED SHIFTS TABLE
 function renderCompletedShiftsTable(logs) {
   const tbody = document.getElementById('dtrTableBody');
   if (!tbody) return;
@@ -230,7 +226,7 @@ function renderCompletedShiftsTable(logs) {
   }).join('');
 }
 
-// UPDATE DASHBOARD
+// UPDATE DASHBOARD OVERVIEW
 function updateDashboard(logs) {
   const totalLogs = document.getElementById('totalLogs');
   const timeInCount = document.getElementById('timeInCount');
@@ -250,7 +246,7 @@ function updateDashboard(logs) {
   }
 }
 
-// MAANGAS SUBMIT WITH LOADING & GLOW ANIMATION
+// FORM SUBMISSION HANDLER
 async function handleFormSubmit(e) {
   e.preventDefault();
 
@@ -282,7 +278,7 @@ async function handleFormSubmit(e) {
     created_at: created_at
   };
 
-  await new Promise(resolve => setTimeout(resolve, 400));
+  await new Promise(resolve => setTimeout(resolve, 300));
 
   try {
     await fetch('/api/dtr', {
@@ -328,7 +324,7 @@ async function handleFormSubmit(e) {
   loadLogs();
 }
 
-// DELETE SHIFT
+// DELETE SHIFT PAIR
 async function deleteShift(inId, outId) {
   if (!confirm('Are you sure you want to delete this completed shift record?')) return;
 
@@ -339,7 +335,7 @@ async function deleteShift(inId, outId) {
   loadLogs();
 }
 
-// EXPORT TO CSV
+// EXPORT TABLE TO CSV FILE
 function exportDTR() {
   const { completedShifts } = processCompletedShifts(window.dtrLogsData || []);
 
@@ -362,3 +358,5 @@ function exportDTR() {
   link.click();
   document.body.removeChild(link);
 }
+
+// END OF SCRIPT.JS
