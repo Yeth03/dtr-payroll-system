@@ -1,362 +1,244 @@
-// ==========================================
-// RGSERVE DTR & PAYROLL SYSTEM - SCRIPT.JS
-// ==========================================
-
-// DAILY RATE CONFIGURATION (₱755 per day)
-const DAILY_RATE = 755; 
-const REGULAR_HOURS = 8; 
-const HOURLY_RATE = DAILY_RATE / REGULAR_HOURS; // ₱94.375 per hour
-const OT_RATE = HOURLY_RATE * 1.25; // 125% Overtime rate (₱117.97 per OT hour)
-
-const STORAGE_KEY = 'rgserve_dtr_logs';
-
-// INITIALIZATION ON PAGE LOAD
-document.addEventListener('DOMContentLoaded', () => {
-  initClock();
-  setDefaultTimestamp();
-  loadLogs();
-
-  const form = document.getElementById('dtrForm');
-  if (form) {
-    form.addEventListener('submit', handleFormSubmit);
+// 1. Live Clock Display sa Header
+function updateClock() {
+  const clockElem = document.getElementById('liveClock');
+  if (clockElem) {
+    const now = new Date();
+    clockElem.textContent = now.toLocaleTimeString();
   }
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+// 2. Set Default Month sa Filter (Kasalukuyang Buwan)
+window.addEventListener('DOMContentLoaded', () => {
+  const today = new Date();
+  const currentMonthStr = today.toISOString().slice(0, 7); // YYYY-MM
+  const monthFilter = document.getElementById('filterMonth');
+  if (monthFilter) {
+    monthFilter.value = currentMonthStr;
+  }
+  setPresetTime('now');
+  renderTable();
 });
 
-// LIVE CLOCK FUNCTION
-function initClock() {
-  const clockEl = document.getElementById('liveClock');
-  setInterval(() => {
-    const now = new Date();
-    if (clockEl) {
-      clockEl.textContent = now.toLocaleTimeString('en-US');
-    }
-  }, 1000);
-}
-
-// DEFAULT TIMESTAMP TO NOW
-function setDefaultTimestamp() {
-  const input = document.getElementById('logTimestamp');
-  if (input) {
-    const now = new Date();
-    now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
-    input.value = now.toISOString().slice(0, 16);
-  }
-}
-
-// PRESET TIME BUTTONS
+// 3. Preset Time Buttons (Now, 6 AM, 6 PM)
 function setPresetTime(type) {
+  const now = new Date();
   const input = document.getElementById('logTimestamp');
-  const shiftSelect = document.getElementById('workShift');
   if (!input) return;
 
-  const now = new Date();
   if (type === 'now') {
     now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
     input.value = now.toISOString().slice(0, 16);
   } else if (type === 'am') {
-    now.setHours(6, 0, 0, 0); // 06:00 AM Shift
+    now.setHours(6, 0, 0, 0);
     now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
     input.value = now.toISOString().slice(0, 16);
-    if (shiftSelect) shiftSelect.value = 'AM';
   } else if (type === 'pm') {
-    now.setHours(18, 0, 0, 0); // 06:00 PM Shift
+    now.setHours(18, 0, 0, 0);
     now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
     input.value = now.toISOString().slice(0, 16);
-    if (shiftSelect) shiftSelect.value = 'PM';
   }
 }
 
-// LOAD LOGS (LOCAL STORAGE + API FALLBACK)
-async function loadLogs() {
-  let logs = [];
-
-  try {
-    const res = await fetch('/api/dtr');
-    if (res.ok) {
-      const result = await res.json();
-      if (result.ok && Array.isArray(result.data)) {
-        logs = result.data;
-      }
-    }
-  } catch (err) {
-    console.warn('Server offline, using local storage.');
-  }
-
-  if (!logs || logs.length === 0) {
-    const localData = localStorage.getItem(STORAGE_KEY);
-    logs = localData ? JSON.parse(localData) : [];
-  }
-
-  window.dtrLogsData = logs;
-  renderCompletedShiftsTable(window.dtrLogsData);
-  updateDashboard(window.dtrLogsData);
+// 4. LocalStorage Helpers
+function getLogs() {
+  return JSON.parse(localStorage.getItem('rgserve_dtr_logs') || '[]');
 }
 
-// PROCESS SHIFTS: MATCH TIME IN AND TIME OUT
-function processCompletedShifts(logs) {
-  const grouped = {};
+function saveLogs(logs) {
+  localStorage.setItem('rgserve_dtr_logs', JSON.stringify(logs));
+}
 
-  logs.forEach(log => {
-    const dateStr = new Date(log.created_at).toLocaleDateString();
-    const shift = log.shift || 'AM';
-    const key = `${log.name.trim().toLowerCase()}_${dateStr}_${shift}`;
+// 5. Submit Event Handler (Pag-save ng Bagong Log)
+const dtrForm = document.getElementById('dtrForm');
+if (dtrForm) {
+  dtrForm.addEventListener('submit', function(e) {
+    e.preventDefault();
+    const name = document.getElementById('employeeName').value.trim();
+    const shift = document.getElementById('workShift').value;
+    const type = document.getElementById('logType').value;
+    const timestamp = document.getElementById('logTimestamp').value;
 
-    if (!grouped[key]) {
-      grouped[key] = {
-        id: log.id,
-        name: log.name,
-        shift: shift,
-        date: dateStr,
-        inLog: null,
-        outLog: null
-      };
+    if (!name || !timestamp) {
+      alert('Paki-punan ang pangalan at petsa/oras!');
+      return;
     }
+
+    const logs = getLogs();
+    logs.push({
+      id: Date.now(),
+      name,
+      shift,
+      type,
+      timestamp
+    });
+
+    saveLogs(logs);
+    showAlert('Na-save nang matagumpay ang log!');
+    renderTable();
+  });
+}
+
+// 6. Notification Alert Popup
+function showAlert(msg) {
+  const alertBox = document.getElementById('statusAlert');
+  if (alertBox) {
+    alertBox.style.display = 'block';
+    alertBox.style.background = 'rgba(0, 255, 135, 0.2)';
+    alertBox.style.color = '#00ff87';
+    alertBox.textContent = msg;
+    setTimeout(() => { alertBox.style.display = 'none'; }, 3000);
+  }
+}
+
+// 7. Pag-oorganisa ng Time IN at Time OUT para sa Hours & Pay Computation
+function processLogs() {
+  const rawLogs = getLogs();
+  const paired = [];
+  const inMap = {};
+
+  // Ayusin ayon sa oras
+  rawLogs.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+
+  rawLogs.forEach(log => {
+    const dateStr = log.timestamp.split('T')[0];
+    const key = `${log.name}_${log.shift}_${dateStr}`;
 
     if (log.type === 'IN') {
-      if (!grouped[key].inLog || new Date(log.created_at) < new Date(grouped[key].inLog.created_at)) {
-        grouped[key].inLog = log;
-      }
-    } else if (log.type === 'OUT') {
-      if (!grouped[key].outLog || new Date(log.created_at) > new Date(grouped[key].outLog.created_at)) {
-        grouped[key].outLog = log;
-      }
-    }
-  });
+      inMap[key] = log;
+    } else if (log.type === 'OUT' && inMap[key]) {
+      const timeIn = new Date(inMap[key].timestamp);
+      const timeOut = new Date(log.timestamp);
+      const diffMs = timeOut - timeIn;
+      const hoursWorked = diffMs > 0 ? (diffMs / (1000 * 60 * 60)).toFixed(2) : 0;
+      
+      // Baguhin ang Hourly Rate batay sa inyong rate (halimbawa: ₱80 per hour)
+      const hourlyRate = 80; 
+      const computedPay = (hoursWorked * hourlyRate).toFixed(2);
 
-  const completedShifts = [];
-  let globalTotalHours = 0;
-  let globalTotalPay = 0;
-
-  Object.keys(grouped).forEach(key => {
-    const shiftGroup = grouped[key];
-
-    if (shiftGroup.inLog && shiftGroup.outLog) {
-      const inTime = new Date(shiftGroup.inLog.created_at);
-      let outTime = new Date(shiftGroup.outLog.created_at);
-
-      let diffMs = outTime - inTime;
-      let rawTotalHours = Math.max(0, diffMs / (1000 * 60 * 60));
-
-      // Automatic 1-hour break deduction if work > 5 hours
-      if (rawTotalHours > 5) {
-        rawTotalHours -= 1;
-      }
-
-      const regHours = Math.min(REGULAR_HOURS, rawTotalHours);
-      let rawOtHours = Math.max(0, rawTotalHours - REGULAR_HOURS);
-
-      // EKS AKTONG 6:30 OT RULE FOR SHIFTING:
-      // Kukunin ang base OT hours (e.g., sa 12 hrs shift, base OT ay 3.0 hrs).
-      // Ang excess minutes ay ang minuto lagpas sa 6:00 PM/AM.
-      let baseOtHours = Math.floor(rawOtHours); 
-      let excessMinutes = (rawOtHours - baseOtHours) * 60;
-
-      let payableOtHours = baseOtHours;
-
-      // KAPAG DUMATING/LUMAMPAS NG 30 MINUTES (6:30 PM/AM PATAAS):
-      // Saka lang isasama at idadagdag sa sahod ang mga minuto lagpas ng 6:00.
-      if (excessMinutes >= 30) {
-        payableOtHours = rawOtHours;
-      }
-
-      const computedTotalHours = regHours + payableOtHours;
-      const regularPay = (regHours / REGULAR_HOURS) * DAILY_RATE;
-      const otPay = payableOtHours * OT_RATE;
-      const totalPay = regularPay + otPay;
-
-      completedShifts.push({
-        id: shiftGroup.id,
-        inId: shiftGroup.inLog.id,
-        outId: shiftGroup.outLog.id,
-        name: shiftGroup.name,
-        shift: shiftGroup.shift,
-        date: shiftGroup.date,
-        timeInFormatted: inTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
-        timeOutFormatted: outTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
-        totalHours: computedTotalHours.toFixed(2),
-        otHours: payableOtHours.toFixed(2),
-        otPay: otPay.toFixed(2),
-        totalPay: totalPay.toFixed(2)
+      paired.push({
+        name: log.name,
+        shift: log.shift,
+        date: dateStr,
+        timeIn: timeIn.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        timeOut: timeOut.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        hoursWorked: hoursWorked,
+        computedPay: computedPay
       });
 
-      globalTotalHours += computedTotalHours;
-      globalTotalPay += totalPay;
+      delete inMap[key];
     }
   });
 
-  return { completedShifts, globalTotalHours, globalTotalPay };
+  return paired;
 }
 
-// RENDER COMPLETED SHIFTS TABLE
-function renderCompletedShiftsTable(logs) {
+// 8. Table Rendering na may Filter ng Cut-off Period (1-15 / 16-31)
+function renderTable() {
+  const selectedMonthElem = document.getElementById('filterMonth');
+  const cutoffElem = document.getElementById('filterCutoff');
   const tbody = document.getElementById('dtrTableBody');
+  
   if (!tbody) return;
 
-  const { completedShifts } = processCompletedShifts(logs);
+  const selectedMonth = selectedMonthElem ? selectedMonthElem.value : ''; 
+  const cutoff = cutoffElem ? cutoffElem.value : 'ALL'; 
+  
+  tbody.innerHTML = '';
 
-  if (completedShifts.length === 0) {
-    tbody.innerHTML = `
-      <tr>
-        <td colspan="7" style="text-align: center; color: #d0d7de; padding: 20px;">
-          <i>No completed shift records found. Records will appear here after TIME OUT.</i>
-        </td>
-      </tr>`;
-    return;
-  }
+  const allPaired = processLogs();
+  let totalHoursSum = 0;
+  let totalPaySum = 0;
+  let totalInToday = 0;
+  let totalOutToday = 0;
 
-  tbody.innerHTML = completedShifts.map(shift => {
-    const shiftBadge = shift.shift === 'PM' 
-      ? `<span class="badge-shift badge-pm">PM SHIFT</span>`
-      : `<span class="badge-shift badge-am">AM SHIFT</span>`;
+  const todayStr = new Date().toISOString().split('T')[0];
 
-    return `
-      <tr>
-        <td><strong>${shift.name}</strong></td>
-        <td>${shiftBadge}</td>
-        <td>${shift.date}</td>
-        <td><span style="color: #00ff87; font-weight: 600;">IN: ${shift.timeInFormatted}</span></td>
-        <td><span style="color: #ff5f56; font-weight: 600;">OUT: ${shift.timeOutFormatted}</span></td>
-        <td><strong>${shift.totalHours} hrs</strong> <small style="color: #00f2fe;">(OT: ${shift.otHours} hrs)</small></td>
-        <td style="color: #00f2fe; font-weight: 700; font-size: 15px;">
-          ₱${shift.totalPay} 
-          <button style="background: rgba(255, 95, 86, 0.25); color: #ff5f56; border: 1px solid #ff5f56; padding: 3px 8px; border-radius: 4px; cursor: pointer; font-size: 11px; margin-left: 10px;" onclick="deleteShift('${shift.inId}', '${shift.outId}')">Delete</button>
-        </td>
-      </tr>
-    `;
-  }).join('');
-}
+  // Kuhanin din ang kabuuang logs ngayong araw para sa Summary Cards
+  const rawLogs = getLogs();
+  rawLogs.forEach(l => {
+    if (l.timestamp.startsWith(todayStr)) {
+      if (l.type === 'IN') totalInToday++;
+      if (l.type === 'OUT') totalOutToday++;
+    }
+  });
 
-// UPDATE DASHBOARD OVERVIEW
-function updateDashboard(logs) {
-  const totalLogs = document.getElementById('totalLogs');
-  const timeInCount = document.getElementById('timeInCount');
-  const timeOutCount = document.getElementById('timeOutCount');
-  const payrollOverview = document.getElementById('payrollOverview');
+  // I-update ang Summary Cards
+  const totalLogsElem = document.getElementById('totalLogs');
+  const timeInElem = document.getElementById('timeInCount');
+  const timeOutElem = document.getElementById('timeOutCount');
 
-  const todayStr = new Date().toLocaleDateString();
-  const todayLogs = logs.filter(l => new Date(l.created_at).toLocaleDateString() === todayStr);
+  if (totalLogsElem) totalLogsElem.textContent = rawLogs.filter(l => l.timestamp.startsWith(todayStr)).length;
+  if (timeInElem) timeInElem.textContent = totalInToday;
+  if (timeOutElem) timeOutElem.textContent = totalOutToday;
 
-  if (totalLogs) totalLogs.textContent = todayLogs.length;
-  if (timeInCount) timeInCount.textContent = todayLogs.filter(l => l.type === 'IN').length;
-  if (timeOutCount) timeOutCount.textContent = todayLogs.filter(l => l.type === 'OUT').length;
+  // I-filter ang mga log batay sa napiling Buwan at Cut-off Period
+  const filtered = allPaired.filter(item => {
+    if (!item.date) return false;
+    const [year, month, day] = item.date.split('-').map(Number);
+    const itemMonthStr = `${year}-${String(month).padStart(2, '0')}`;
 
-  const { globalTotalHours, globalTotalPay } = processCompletedShifts(logs);
-  if (payrollOverview) {
-    payrollOverview.textContent = `Est. Total Work: ${globalTotalHours.toFixed(1)} hrs | Total Computed Pay: ₱${globalTotalPay.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
-  }
-}
-
-// FORM SUBMISSION HANDLER
-async function handleFormSubmit(e) {
-  e.preventDefault();
-
-  const nameInput = document.getElementById('employeeName');
-  const shiftInput = document.getElementById('workShift');
-  const typeInput = document.getElementById('logType');
-  const timestampInput = document.getElementById('logTimestamp');
-  const alertBox = document.getElementById('statusAlert');
-  const submitBtn = e.target.querySelector('button[type="submit"]');
-
-  const name = nameInput.value.trim();
-  const shift = shiftInput ? shiftInput.value : 'AM';
-  const type = typeInput.value;
-  const created_at = timestampInput.value ? new Date(timestampInput.value).toISOString() : new Date().toISOString();
-
-  if (!name || !type) return;
-
-  const originalBtnText = submitBtn ? submitBtn.innerHTML : 'Submit Log';
-  if (submitBtn) {
-    submitBtn.classList.add('btn-saving');
-    submitBtn.innerHTML = `<span class="btn-spinner"></span> ⚡ Saving Entry...`;
-  }
-
-  const newLog = {
-    id: Date.now().toString(),
-    name: name,
-    shift: shift,
-    type: type,
-    created_at: created_at
-  };
-
-  await new Promise(resolve => setTimeout(resolve, 300));
-
-  try {
-    await fetch('/api/dtr', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(newLog)
-    });
-  } catch (err) {
-    console.warn('Server offline. Saving log locally.');
-  }
-
-  const localLogs = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-  localLogs.unshift(newLog);
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(localLogs));
-
-  if (submitBtn) {
-    submitBtn.classList.remove('btn-saving');
-    submitBtn.innerHTML = `✨ Saved Successfully!`;
-    setTimeout(() => {
-      submitBtn.innerHTML = originalBtnText;
-    }, 1200);
-  }
-
-  if (alertBox) {
-    alertBox.className = 'status-alert-cyber'; 
-    alertBox.style.display = 'block';
-
-    if (type === 'IN') {
-      alertBox.classList.add('glow-success');
-      alertBox.innerHTML = `⚡ <strong>TIME IN RECORDED</strong><br>Welcome <strong>${name}</strong> (${shift} Shift). Payroll active upon OUT.`;
-    } else {
-      alertBox.classList.add('glow-info');
-      alertBox.innerHTML = `🚀 <strong>SHIFT COMPLETED</strong><br>Nice work <strong>${name}</strong> (${shift} Shift)! Computed pay updated.`;
+    if (selectedMonth && itemMonthStr !== selectedMonth) {
+      return false;
     }
 
-    setTimeout(() => {
-      alertBox.style.display = 'none';
-    }, 4500);
+    if (cutoff === '1-15') {
+      return day >= 1 && day <= 15;
+    } else if (cutoff === '16-31') {
+      return day >= 16 && day <= 31;
+    }
+
+    return true;
+  });
+
+  if (filtered.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: #b0bac5;">Walang nahanap na log para sa napiling cut-off.</td></tr>`;
+  } else {
+    filtered.forEach(log => {
+      totalHoursSum += parseFloat(log.hoursWorked);
+      totalPaySum += parseFloat(log.computedPay);
+
+      const row = document.createElement('tr');
+      row.innerHTML = `
+        <td><strong>${log.name}</strong></td>
+        <td><span class="badge-shift ${log.shift === 'AM' ? 'badge-am' : 'badge-pm'}">${log.shift}</span></td>
+        <td>${log.date}</td>
+        <td>${log.timeIn}</td>
+        <td>${log.timeOut}</td>
+        <td>${log.hoursWorked} hrs</td>
+        <td style="color: #00ff87; font-weight: bold;">₱${parseFloat(log.computedPay).toLocaleString('en-US', {minimumFractionDigits: 2})}</td>
+      `;
+      tbody.appendChild(row);
+    });
   }
 
-  nameInput.value = '';
-  setDefaultTimestamp();
-  loadLogs();
+  // I-update ang Payroll Overview Card
+  const payrollOverview = document.getElementById('payrollOverview');
+  if (payrollOverview) {
+    payrollOverview.textContent = 
+      `Est. Total Work: ${totalHoursSum.toFixed(2)} hrs | Total Computed Pay: ₱${totalPaySum.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
+  }
 }
 
-// DELETE SHIFT PAIR
-async function deleteShift(inId, outId) {
-  if (!confirm('Are you sure you want to delete this completed shift record?')) return;
-
-  let localLogs = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-  localLogs = localLogs.filter(log => log.id.toString() !== inId.toString() && log.id.toString() !== outId.toString());
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(localLogs));
-
-  loadLogs();
-}
-
-// EXPORT TABLE TO CSV FILE
+// 9. Export filtered logs to CSV
 function exportDTR() {
-  const { completedShifts } = processCompletedShifts(window.dtrLogsData || []);
-
-  if (completedShifts.length === 0) {
-    alert('No completed shift records to export.');
+  const allPaired = processLogs();
+  if (allPaired.length === 0) {
+    alert('Walang data na pwedeng i-export!');
     return;
   }
 
-  let csvContent = "data:text/csv;charset=utf-8,Employee Name,Shift,Date,Time In,Time Out,Total Hours,OT Hours,Total Pay (PHP)\n";
-
-  completedShifts.forEach(s => {
-    csvContent += `"${s.name}","${s.shift} Shift","${s.date}","${s.timeInFormatted}","${s.timeOutFormatted}","${s.totalHours}","${s.otHours}","${s.totalPay}"\n`;
+  let csvContent = "data:text/csv;charset=utf-8,Employee,Shift,Date,Time In,Time Out,Hours Worked,Computed Pay\n";
+  allPaired.forEach(r => {
+    csvContent += `"${r.name}","${r.shift}","${r.date}","${r.timeIn}","${r.timeOut}","${r.hoursWorked}","${r.computedPay}"\n`;
   });
 
   const encodedUri = encodeURI(csvContent);
   const link = document.createElement("a");
   link.setAttribute("href", encodedUri);
-  link.setAttribute("download", `DTR_Payroll_Summary_${new Date().toISOString().slice(0,10)}.csv`);
+  link.setAttribute("download", `RGSERVE_DTR_Export.csv`);
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
 }
-
-// END OF SCRIPT.JS
