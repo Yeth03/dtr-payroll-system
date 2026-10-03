@@ -23,7 +23,7 @@ document.addEventListener('DOMContentLoaded', () => {
   setPresetTime('now');
   renderTable();
 
-  // Attach Form Submit Listener with Save Animations
+  // Attach Form Submit Listener with Smooth Save Animation
   const dtrForm = document.getElementById('dtrForm');
   if (dtrForm) {
     dtrForm.addEventListener('submit', function(e) {
@@ -41,9 +41,10 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
 
-      // Visual Effect: Button Loading State
+      // Smooth Button Loading Effect
       btn.style.pointerEvents = 'none';
-      if (btnText) btnText.textContent = 'Saving... ⏳';
+      btn.style.opacity = '0.7';
+      if (btnText) btnText.textContent = 'Saving...';
 
       setTimeout(() => {
         const logs = getLogs();
@@ -57,16 +58,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
         saveLogs(logs);
 
-        // Reset Button State
+        // Reset Button State Smoothly
         btn.style.pointerEvents = 'auto';
+        btn.style.opacity = '1';
         if (btnText) btnText.textContent = 'Save Log';
 
-        // Toast Notification Popup (English)
+        // Clean Toast Notification Popup
         showToast(`Log saved successfully for ${name}!`, 'success');
-        if (navigator.vibrate) navigator.vibrate(50); // Haptic vibration
+        if (navigator.vibrate) navigator.vibrate(30);
 
         renderTable(true); // Re-render table and highlight
-      }, 300);
+      }, 200);
     });
   }
 });
@@ -100,7 +102,7 @@ function saveLogs(logs) {
   localStorage.setItem('rgserve_dtr_logs', JSON.stringify(logs));
 }
 
-// 5. Animated Toast Popup Notification
+// 5. Clean Toast Popup Notification
 function showToast(msg, type = 'success') {
   const container = document.getElementById('toastContainer');
   if (!container) return;
@@ -108,7 +110,7 @@ function showToast(msg, type = 'success') {
   const toast = document.createElement('div');
   toast.className = 'toast';
   if (type === 'error') {
-    toast.style.borderLeftColor = '#ff5f56';
+    toast.style.borderLeftColor = '#ff4d4f';
   }
 
   toast.innerHTML = `
@@ -122,11 +124,11 @@ function showToast(msg, type = 'success') {
 
   setTimeout(() => {
     toast.classList.remove('show');
-    setTimeout(() => toast.remove(), 300);
-  }, 2500);
+    setTimeout(() => toast.remove(), 200);
+  }, 2000);
 }
 
-// 6. LOG PROCESSING WITH BASIC RATE (₱755/day = ₱94.375/hr)
+// 6. LOG PROCESSING (MAY BAWAS NA 1 HOUR UNPAID BREAKTIME)
 function processLogs() {
   const rawLogs = getLogs();
   const paired = [];
@@ -155,12 +157,21 @@ function processLogs() {
         const timeOut = new Date(log.timestamp);
         
         const diffMs = timeOut - timeIn;
-        const hoursWorked = diffMs > 0 ? (diffMs / (1000 * 60 * 60)).toFixed(2) : 0;
+        let totalHours = diffMs > 0 ? (diffMs / (1000 * 60 * 60)) : 0;
         
-        // BASIC RATE CONFIGURATION
-        const dailyRate = 755;           // ₱755 Basic Rate per day
-        const hourlyRate = dailyRate / 8; // ₱94.375 per hour
-        const computedPay = (hoursWorked * hourlyRate).toFixed(2);
+        // UNPAID BREAKTIME LOGIC:
+        // Kung lumagpas sa 5 oras ang rendering, magbabawas ng 1 hr para sa break.
+        let paidHours = totalHours;
+        if (totalHours >= 5) {
+          paidHours = Math.max(0, totalHours - 1);
+        }
+
+        const hoursWorkedStr = paidHours.toFixed(2);
+
+        // BASIC RATE CONFIGURATION (₱755/day = ₱94.375/hr)
+        const dailyRate = 755;
+        const hourlyRate = dailyRate / 8;
+        const computedPay = (paidHours * hourlyRate).toFixed(2);
 
         const dateStr = currentIn.timestamp.split('T')[0];
 
@@ -171,11 +182,11 @@ function processLogs() {
           date: dateStr,
           timeIn: timeIn.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
           timeOut: timeOut.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          hoursWorked: hoursWorked,
+          hoursWorked: hoursWorkedStr,
           computedPay: computedPay
         });
 
-        currentIn = null; // Reset after successful pair
+        currentIn = null; // Reset
       }
     });
   });
