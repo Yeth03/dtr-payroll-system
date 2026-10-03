@@ -22,7 +22,6 @@
       font-family: 'Consolas', 'Fira Code', 'Monaco', 'Segoe UI', monospace;
       box-shadow: none !important;
       text-shadow: none !important;
-      transition: none !important;
     }
 
     body {
@@ -145,6 +144,11 @@
       border-radius: 5px;
       font-size: 12px;
       outline: none;
+      transition: border-color 0.3s ease, box-shadow 0.3s ease !important;
+    }
+
+    input:focus, select:focus {
+      border-color: #00f2fe;
     }
 
     select option {
@@ -167,6 +171,11 @@
       border-radius: 4px;
       font-size: 9px;
       cursor: pointer;
+      transition: background 0.2s ease !important;
+    }
+
+    .preset-btn:active {
+      background: rgba(0, 242, 254, 0.3);
     }
 
     .btn {
@@ -178,11 +187,18 @@
       cursor: pointer;
       margin-top: 12px;
       font-size: 12px;
+      position: relative;
+      overflow: hidden;
     }
 
     .btn-save {
       background: #00f2fe;
       color: #0d1117;
+      transition: transform 0.1s ease, background-color 0.2s ease !important;
+    }
+
+    .btn-save:active {
+      transform: scale(0.97);
     }
 
     .btn-export {
@@ -193,6 +209,58 @@
       font-size: 11px;
       font-weight: bold;
       border-radius: 5px;
+    }
+
+    /* TOAST NOTIFICATION EFFECT */
+    .toast-container {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .toast {
+      min-width: 220px;
+      padding: 10px 16px;
+      background: rgba(13, 17, 23, 0.95);
+      border-left: 4px solid #00ff87;
+      color: #ffffff;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: bold;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      opacity: 0;
+      transform: translateY(-20px) scale(0.9);
+      transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55) !important;
+      backdrop-filter: blur(10px);
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+      border-right: 1px solid rgba(255, 255, 255, 0.1);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+
+    .toast-icon {
+      font-size: 16px;
+      color: #00ff87;
+    }
+
+    /* ROW HIGHLIGHT ANIMATION */
+    @keyframes newRowGlow {
+      0% { background: rgba(0, 255, 135, 0.4); }
+      100% { background: transparent; }
+    }
+
+    .row-highlight {
+      animation: newRowGlow 1.5s ease-out;
     }
 
     .filter-container {
@@ -271,6 +339,9 @@
 </head>
 <body>
 
+  <!-- TOAST NOTIFICATION CONTAINER -->
+  <div class="toast-container" id="toastContainer"></div>
+
   <div class="container">
     <header>
       <div>
@@ -333,8 +404,9 @@
             <button type="button" class="preset-btn" onclick="setPresetTime('pm')">06:00 PM</button>
           </div>
 
-          <button type="submit" class="btn btn-save" id="btnSubmit">Save Log</button>
-          <div id="statusAlert" style="display: none; margin-top: 10px; padding: 8px; border-radius: 6px; font-size: 11px; text-align: center;"></div>
+          <button type="submit" class="btn btn-save" id="btnSubmit">
+            <span id="btnText">Save Log</span>
+          </button>
         </form>
       </div>
 
@@ -375,7 +447,7 @@
               </tr>
             </thead>
             <tbody id="dtrTableBody">
-              <!-- Logs dynamically rendered here -->
+              <!-- Dynamic entries -->
             </tbody>
           </table>
         </div>
