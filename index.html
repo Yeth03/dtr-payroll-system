@@ -2,8 +2,8 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=0.8, maximum-scale=1.0, user-scalable=yes">
-  <title>RGSERVE DTR & Payroll System - Ultra Transparent Edition</title>
+  <meta name="viewport" content="width=device-width, initial-scale=0.75, maximum-scale=1.0, user-scalable=yes">
+  <title>RGSERVE DTR & Payroll System</title>
   
   <style>
     html, body {
@@ -30,11 +30,11 @@
                   url('kali.jpg') no-repeat center center fixed;
       background-size: cover;
       color: #ffffff;
-      padding: 20px;
+      padding: 10px; /* Binawasan mula 20px */
     }
 
     .container {
-      max-width: 1200px;
+      max-width: 100%;
       margin: 0 auto;
       width: 100%;
     }
@@ -43,10 +43,10 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: 15px 20px;
-      margin-bottom: 25px;
+      padding: 10px 12px;
+      margin-bottom: 15px;
       background: rgba(10, 15, 25, 0.20);
-      border-radius: 12px;
+      border-radius: 8px;
       border: 1px solid rgba(255, 255, 255, 0.18);
       backdrop-filter: blur(8px);
       -webkit-backdrop-filter: blur(8px);
@@ -54,55 +54,54 @@
 
     h1 {
       color: #00f2fe;
-      font-size: 24px;
-      letter-spacing: 1px;
+      font-size: 18px; /* Binawasan mula 24px */
+      letter-spacing: 0.5px;
     }
 
     .clock-display {
-      font-size: 18px;
+      font-size: 14px;
       font-weight: bold;
       color: #00ff87;
       background: rgba(0, 0, 0, 0.35);
-      padding: 8px 16px;
-      border-radius: 8px;
+      padding: 5px 10px;
+      border-radius: 6px;
       border: 1px solid rgba(0, 255, 135, 0.5);
-      backdrop-filter: blur(6px);
     }
 
     .dashboard-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-      gap: 15px;
-      margin-bottom: 25px;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); /* Mas maliit na cards */
+      gap: 10px;
+      margin-bottom: 15px;
     }
 
     .card {
       background: rgba(10, 15, 25, 0.18);
-      padding: 18px;
-      border-radius: 12px;
+      padding: 10px;
+      border-radius: 8px;
       border: 1px solid rgba(255, 255, 255, 0.15);
       backdrop-filter: blur(8px);
       -webkit-backdrop-filter: blur(8px);
     }
 
     .card h3 {
-      font-size: 11px;
+      font-size: 9px;
       color: #b0bac5;
       text-transform: uppercase;
-      margin-bottom: 8px;
-      letter-spacing: 1px;
+      margin-bottom: 4px;
+      letter-spacing: 0.5px;
     }
 
     .card .value {
-      font-size: 22px;
+      font-size: 16px;
       font-weight: bold;
       color: #ffffff;
     }
 
     .main-content {
       display: grid;
-      grid-template-columns: 340px 1fr;
-      gap: 20px;
+      grid-template-columns: 280px 1fr; /* Binawasan ang lapad ng form */
+      gap: 12px;
     }
 
     @media (max-width: 850px) {
@@ -113,41 +112,39 @@
 
     .form-section, .table-section {
       background: rgba(10, 15, 25, 0.20);
-      padding: 22px;
-      border-radius: 12px;
+      padding: 12px;
+      border-radius: 8px;
       border: 1px solid rgba(255, 255, 255, 0.18);
       backdrop-filter: blur(10px);
       -webkit-backdrop-filter: blur(10px);
     }
 
     .form-section h2, .table-section h2 {
-      font-size: 18px;
-      margin-bottom: 18px;
+      font-size: 15px;
+      margin-bottom: 12px;
       color: #00f2fe;
-      border-left: 4px solid #00f2fe;
-      padding-left: 10px;
+      border-left: 3px solid #00f2fe;
+      padding-left: 8px;
     }
 
     .label-text {
       display: block;
-      font-size: 11px;
+      font-size: 10px;
       color: #d0d7de;
-      margin-top: 14px;
-      margin-bottom: 6px;
+      margin-top: 10px;
+      margin-bottom: 4px;
       text-transform: uppercase;
-      letter-spacing: 0.5px;
     }
 
     input, select {
       width: 100%;
-      padding: 10px 12px;
+      padding: 7px 9px;
       background: rgba(0, 0, 0, 0.35);
       border: 1px solid rgba(255, 255, 255, 0.2);
       color: #00f2fe;
-      border-radius: 6px;
-      font-size: 14px;
+      border-radius: 5px;
+      font-size: 12px;
       outline: none;
-      backdrop-filter: blur(5px);
     }
 
     select option {
@@ -157,8 +154,8 @@
 
     .shift-presets {
       display: flex;
-      gap: 6px;
-      margin-top: 10px;
+      gap: 4px;
+      margin-top: 8px;
     }
 
     .preset-btn {
@@ -166,20 +163,21 @@
       background: rgba(255, 255, 255, 0.1);
       color: #ffffff;
       border: 1px solid rgba(255, 255, 255, 0.2);
-      padding: 7px 4px;
-      border-radius: 6px;
-      font-size: 10px;
+      padding: 5px 2px;
+      border-radius: 4px;
+      font-size: 9px;
       cursor: pointer;
     }
 
     .btn {
       width: 100%;
-      padding: 12px;
+      padding: 9px;
       border: none;
-      border-radius: 6px;
+      border-radius: 5px;
       font-weight: bold;
       cursor: pointer;
-      margin-top: 18px;
+      margin-top: 12px;
+      font-size: 12px;
     }
 
     .btn-save {
@@ -191,33 +189,33 @@
       background: #00ff87;
       color: #0d1117;
       width: auto;
-      padding: 8px 16px;
-      font-size: 12px;
+      padding: 6px 12px;
+      font-size: 11px;
       font-weight: bold;
-      border-radius: 6px;
+      border-radius: 5px;
     }
 
     .filter-container {
       display: flex;
-      gap: 10px;
+      gap: 8px;
       flex-wrap: wrap;
-      margin-bottom: 15px;
+      margin-bottom: 10px;
       background: rgba(0, 0, 0, 0.25);
-      padding: 12px;
-      border-radius: 8px;
+      padding: 8px;
+      border-radius: 6px;
       border: 1px solid rgba(255, 255, 255, 0.1);
     }
 
     .filter-item {
       flex: 1;
-      min-width: 140px;
+      min-width: 120px;
     }
 
     .filter-item label {
-      font-size: 10px;
+      font-size: 9px;
       color: #b0bac5;
       display: block;
-      margin-bottom: 4px;
+      margin-bottom: 3px;
       text-transform: uppercase;
     }
 
@@ -225,19 +223,27 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 15px;
+      margin-bottom: 10px;
       flex-wrap: wrap;
-      gap: 10px;
+      gap: 8px;
+    }
+
+    /* Pinakamasinsin na Table Layout para sa CP */
+    .table-wrapper {
+      width: 100%;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
     }
 
     table {
-      width: 100% !important;
+      width: 100%;
       border-collapse: collapse;
-      font-size: 13px;
+      font-size: 11px; /* Mas maliit na font sa table */
+      white-space: nowrap; /* Iwas patong-patong ng text */
     }
 
     th, td {
-      padding: 12px;
+      padding: 7px 8px; /* Binawasan ang space sa bawat cell */
       text-align: left;
       border-bottom: 1px solid rgba(255, 255, 255, 0.15);
     }
@@ -246,7 +252,7 @@
       background: rgba(0, 0, 0, 0.3);
       color: #00f2fe;
       font-weight: 600;
-      font-size: 11px;
+      font-size: 10px;
       text-transform: uppercase;
     }
 
@@ -261,7 +267,7 @@
     <header>
       <div>
         <h1>RGSERVE DTR System</h1>
-        <small style="color: #d0d7de;">Daily Time Record & Automated Payroll Computation</small>
+        <small style="color: #d0d7de; font-size: 10px;">Daily Time Record & Automated Payroll</small>
       </div>
       <div class="clock-display" id="liveClock">00:00:00 AM</div>
     </header>
@@ -281,9 +287,9 @@
         <div class="value" id="timeOutCount" style="color: #ff5f56;">0</div>
       </div>
       <div class="card" style="grid-column: span 2;">
-        <h3>Payroll Overview (Filtered Cut-off)</h3>
-        <div class="value" id="payrollOverview" style="font-size: 14px; color: #00f2fe; margin-top: 5px;">
-          Est. Total Work: 0 hrs | Total Computed Pay: ₱0.00
+        <h3>Payroll Overview (Cut-off)</h3>
+        <div class="value" id="payrollOverview" style="font-size: 12px; color: #00f2fe; margin-top: 3px;">
+          Est. Work: 0 hrs | Pay: ₱0.00
         </div>
       </div>
     </div>
@@ -315,12 +321,12 @@
 
           <div class="shift-presets">
             <button type="button" class="preset-btn" onclick="setPresetTime('now')">Current Time</button>
-            <button type="button" class="preset-btn" onclick="setPresetTime('am')">06:00 AM Shift</button>
-            <button type="button" class="preset-btn" onclick="setPresetTime('pm')">06:00 PM Shift</button>
+            <button type="button" class="preset-btn" onclick="setPresetTime('am')">06:00 AM</button>
+            <button type="button" class="preset-btn" onclick="setPresetTime('pm')">06:00 PM</button>
           </div>
 
           <button type="submit" class="btn btn-save" id="btnSubmit">Save Log</button>
-          <div id="statusAlert" style="display: none; margin-top: 15px; padding: 10px; border-radius: 8px; font-size: 12px; font-weight: 500; text-align: center; backdrop-filter: blur(8px);"></div>
+          <div id="statusAlert" style="display: none; margin-top: 10px; padding: 8px; border-radius: 6px; font-size: 11px; text-align: center;"></div>
         </form>
       </div>
 
@@ -328,13 +334,13 @@
       <div class="table-section">
         <div class="table-header-actions">
           <h2>View Logs & Payroll</h2>
-          <button class="btn btn-export" onclick="exportDTR()">Export Filtered CSV</button>
+          <button class="btn btn-export" onclick="exportDTR()">Export CSV</button>
         </div>
 
         <!-- CUT-OFF & MONTH FILTER CONTROLS -->
         <div class="filter-container">
           <div class="filter-item">
-            <label>Select Month & Year</label>
+            <label>Month & Year</label>
             <input type="month" id="filterMonth" onchange="renderTable()">
           </div>
           <div class="filter-item">
@@ -347,17 +353,17 @@
           </div>
         </div>
 
-        <div style="overflow-x: auto;">
+        <div class="table-wrapper">
           <table>
             <thead>
               <tr>
                 <th>Employee</th>
                 <th>Shift</th>
                 <th>Date</th>
-                <th>Time In</th>
-                <th>Time Out</th>
-                <th>Total Work (OT)</th>
-                <th>Computed Pay</th>
+                <th>In</th>
+                <th>Out</th>
+                <th>Work</th>
+                <th>Pay</th>
               </tr>
             </thead>
             <tbody id="dtrTableBody">
