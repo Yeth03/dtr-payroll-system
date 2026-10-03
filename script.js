@@ -8,7 +8,7 @@ function updateClock() {
 }
 setInterval(updateClock, 1000);
 
-// 2. Initial Setup pagka-load ng Page
+// 2. Initial Setup upon Page Load
 document.addEventListener('DOMContentLoaded', () => {
   updateClock();
   
@@ -23,7 +23,7 @@ document.addEventListener('DOMContentLoaded', () => {
   setPresetTime('now');
   renderTable();
 
-  // Attach Form Submit Listener na may Animation Effects
+  // Attach Form Submit Listener
   const dtrForm = document.getElementById('dtrForm');
   if (dtrForm) {
     dtrForm.addEventListener('submit', function(e) {
@@ -37,13 +37,13 @@ document.addEventListener('DOMContentLoaded', () => {
       const timestamp = document.getElementById('logTimestamp').value;
 
       if (!name || !timestamp) {
-        showToast('Paki-punan ang lahat ng detalye!', 'error');
+        showToast('Please fill out all fields!', 'error');
         return;
       }
 
       // Visual Effect 1: Button Loading State
       btn.style.pointerEvents = 'none';
-      btnText.textContent = 'Saving... ⏳';
+      if (btnText) btnText.textContent = 'Saving... ⏳';
 
       setTimeout(() => {
         const logs = getLogs();
@@ -59,13 +59,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Reset Button State
         btn.style.pointerEvents = 'auto';
-        btnText.textContent = 'Save Log';
+        if (btnText) btnText.textContent = 'Save Log';
 
-        // Visual Effect 2: Toast Notification Popup & Sound/Vibration
-        showToast(`✔ Saved log for ${name}!`, 'success');
-        if (navigator.vibrate) navigator.vibrate(50); // Mabilis na haptic vibration sa CP
+        // Toast Notification Popup
+        showToast(`Log saved successfully for ${name}!`, 'success');
+        if (navigator.vibrate) navigator.vibrate(50);
 
-        renderTable(true); // Highlighting new entry
+        renderTable(true); // Re-render table and highlight
       }, 300);
     });
   }
@@ -118,58 +118,70 @@ function showToast(msg, type = 'success') {
 
   container.appendChild(toast);
 
-  // Trigger animation
   setTimeout(() => toast.classList.add('show'), 10);
 
-  // Auto remove pagkatapos ng 2.5 seconds
   setTimeout(() => {
     toast.classList.remove('show');
     setTimeout(() => toast.remove(), 300);
   }, 2500);
 }
 
-// 6. Processing of IN/OUT Logs
+// 6. IMPORVED LOG PROCESSING (FIFO Matching for Cross-Day / Night Shifts)
 function processLogs() {
   const rawLogs = getLogs();
   const paired = [];
-  const inMap = {};
-
+  
+  // I-sort ang mga logs ayon sa oras/petsa
   rawLogs.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
 
+  // I-group ang logs kada Employee Name
+  const employeeLogs = {};
   rawLogs.forEach(log => {
-    const dateStr = log.timestamp.split('T')[0];
-    const key = `${log.name}_${log.shift}_${dateStr}`;
+    const key = log.name.toLowerCase().trim();
+    if (!employeeLogs[key]) employeeLogs[key] = [];
+    employeeLogs[key].push(log);
+  });
 
-    if (log.type === 'IN') {
-      inMap[key] = log;
-    } else if (log.type === 'OUT' && inMap[key]) {
-      const timeIn = new Date(inMap[key].timestamp);
-      const timeOut = new Date(log.timestamp);
-      const diffMs = timeOut - timeIn;
-      const hoursWorked = diffMs > 0 ? (diffMs / (1000 * 60 * 60)).toFixed(2) : 0;
-      
-      const hourlyRate = 80;
-      const computedPay = (hoursWorked * hourlyRate).toFixed(2);
+  // I-pair ang IN at OUT bawat empleyado
+  Object.keys(employeeLogs).forEach(emp => {
+    const logs = employeeLogs[emp];
+    let currentIn = null;
 
-      paired.push({
-        id: log.id,
-        name: log.name,
-        shift: log.shift,
-        date: dateStr,
-        timeIn: timeIn.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        timeOut: timeOut.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        hoursWorked: hoursWorked,
-        computedPay: computedPay
-      });
+    logs.forEach(log => {
+      if (log.type === 'IN') {
+        currentIn = log; // Tandaan ang pinakahuling TIME IN
+      } else if (log.type === 'OUT' && currentIn) {
+        const timeIn = new Date(currentIn.timestamp);
+        const timeOut = new Date(log.timestamp);
+        
+        const diffMs = timeOut - timeIn;
+        const hoursWorked = diffMs > 0 ? (diffMs / (1000 * 60 * 60)).toFixed(2) : 0;
+        
+        const hourlyRate = 80; // Rate kada oras (₱80/hr)
+        const computedPay = (hoursWorked * hourlyRate).toFixed(2);
 
-      delete inMap[key];
-    }
+        const dateStr = currentIn.timestamp.split('T')[0];
+
+        paired.push({
+          id: log.id,
+          name: currentIn.name,
+          shift: currentIn.shift,
+          date: dateStr,
+          timeIn: timeIn.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          timeOut: timeOut.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          hoursWorked: hoursWorked,
+          computedPay: computedPay
+        });
+
+        currentIn = null; // Reset pagkatapos maipares
+      }
+    });
   });
 
   return paired;
 }
 
-// 7. Table Rendering with Highlight Animation
+// 7. Table Rendering
 function renderTable(highlightLatest = false) {
   const selectedMonthElem = document.getElementById('filterMonth');
   const cutoffElem = document.getElementById('filterCutoff');
@@ -192,7 +204,7 @@ function renderTable(highlightLatest = false) {
   const rawLogs = getLogs();
 
   rawLogs.forEach(l => {
-    if (l.timestamp.startsWith(todayStr)) {
+    if (l.timestamp && l.timestamp.startsWith(todayStr)) {
       if (l.type === 'IN') totalInToday++;
       if (l.type === 'OUT') totalOutToday++;
     }
@@ -202,7 +214,7 @@ function renderTable(highlightLatest = false) {
   const timeInElem = document.getElementById('timeInCount');
   const timeOutElem = document.getElementById('timeOutCount');
 
-  if (totalLogsElem) totalLogsElem.textContent = rawLogs.filter(l => l.timestamp.startsWith(todayStr)).length;
+  if (totalLogsElem) totalLogsElem.textContent = rawLogs.filter(l => l.timestamp && l.timestamp.startsWith(todayStr)).length;
   if (timeInElem) timeInElem.textContent = totalInToday;
   if (timeOutElem) timeOutElem.textContent = totalOutToday;
 
@@ -219,7 +231,7 @@ function renderTable(highlightLatest = false) {
   });
 
   if (filtered.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: #b0bac5; padding: 15px;">Walang logs para sa napiling cut-off.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: #b0bac5; padding: 15px;">No matched IN/OUT logs found for the selected cut-off.</td></tr>`;
   } else {
     filtered.forEach((log, index) => {
       totalHoursSum += parseFloat(log.hoursWorked);
@@ -227,7 +239,6 @@ function renderTable(highlightLatest = false) {
 
       const row = document.createElement('tr');
       
-      // Visual Effect 3: Green Glow Effect sa pinakabagong nai-save na row
       if (highlightLatest && index === filtered.length - 1) {
         row.classList.add('row-highlight');
       }
@@ -252,11 +263,11 @@ function renderTable(highlightLatest = false) {
   }
 }
 
-// 8. Export filtered logs to CSV
+// 8. Export Filtered Logs to CSV
 function exportDTR() {
   const allPaired = processLogs();
   if (allPaired.length === 0) {
-    showToast('Walang data na pwedeng i-export!', 'error');
+    showToast('No data available to export!', 'error');
     return;
   }
 
