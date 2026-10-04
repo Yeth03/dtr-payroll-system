@@ -1,5 +1,5 @@
 // =========================================================
-// DTR PAYROLL CONFIGURATION
+// DTR PAYROLL CONFIGURATION (EXPLICIT 755.00 DAILY RATE)
 // =========================================================
 const BASIC_DAILY_RATE = 755.00;
 const REGULAR_HOURS_PER_DAY = 8;
@@ -8,8 +8,7 @@ const BASIC_HOURLY_RATE = BASIC_DAILY_RATE / REGULAR_HOURS_PER_DAY; // 94.375
 const OVERTIME_MULTIPLIER = 1.25;
 const NIGHT_DIFF_MULTIPLIER = 0.10; 
 
-// Company Policy Adjustments
-const GRACE_PERIOD_MINUTES = 15; // 15 mins grace period sa Time IN
+const GRACE_PERIOD_MINUTES = 15; 
 
 const DAY_MULTIPLIERS = {
   "REGULAR": 1.00,
@@ -32,19 +31,18 @@ let audioCtx = null;
 let musicInterval = null;
 let currentNoteIndex = 0;
 
-// "All I Want for Christmas Is You" Intro Melody (Frequencies & Durations)
 const christmasMelody = [
-  { note: 783.99, duration: 400 }, // G5
-  { note: 987.77, duration: 400 }, // B5
-  { note: 1174.66, duration: 400 }, // D6
-  { note: 1318.51, duration: 600 }, // E6
-  { note: 1174.66, duration: 400 }, // D6
-  { note: 987.77, duration: 400 }, // B5
-  { note: 783.99, duration: 600 }, // G5
-  { note: 659.25, duration: 400 }, // E5
-  { note: 783.99, duration: 400 }, // G5
-  { note: 880.00, duration: 400 }, // A5
-  { note: 783.99, duration: 800 }, // G5
+  { note: 783.99, duration: 400 },
+  { note: 987.77, duration: 400 },
+  { note: 1174.66, duration: 400 },
+  { note: 1318.51, duration: 600 },
+  { note: 1174.66, duration: 400 },
+  { note: 987.77, duration: 400 },
+  { note: 783.99, duration: 600 },
+  { note: 659.25, duration: 400 },
+  { note: 783.99, duration: 400 },
+  { note: 880.00, duration: 400 },
+  { note: 783.99, duration: 800 }
 ];
 
 // =========================================================
@@ -172,7 +170,6 @@ function handleFormSubmit(e) {
 
   setDefaultEmployeeName();
   setDefaultTimestamp();
-  
   renderTable();
 }
 
@@ -190,9 +187,7 @@ function showToast(msg) {
   toast.innerHTML = `✓ ${msg}`;
   container.appendChild(toast);
 
-  setTimeout(() => {
-    toast.remove();
-  }, 2500);
+  setTimeout(() => { toast.remove(); }, 2500);
 }
 
 function deleteSingleLog(id) {
@@ -212,7 +207,7 @@ function deletePairLogs(inId, outId) {
 }
 
 // =========================================================
-// NIGHT DIFFERENTIAL & DTR COMPUTATION
+// NIGHT DIFFERENTIAL & COMPUTATION
 // =========================================================
 function calculateNightDiffHours(timeIn, timeOut) {
   let ndMinutes = 0;
@@ -227,9 +222,7 @@ function calculateNightDiffHours(timeIn, timeOut) {
   }
 
   let totalND = ndMinutes / 60;
-  if (totalND > 5) {
-    totalND -= 1; // 1 hr break deduction for overnight
-  }
+  if (totalND > 5) totalND -= 1;
 
   return Math.max(0, totalND);
 }
@@ -270,20 +263,18 @@ function processDTRPairs() {
         let timeIn = new Date(inLog.timestamp);
         const timeOut = new Date(log.timestamp);
 
-        // --- 1. APPLY 15-MINUTE GRACE PERIOD SA TIME IN ---
         let scheduledIn = new Date(timeIn.getTime());
         if (inLog.shift === 'AM') {
-          scheduledIn.setHours(8, 0, 0, 0); // 8:00 AM
+          scheduledIn.setHours(8, 0, 0, 0);
         } else if (inLog.shift === 'PM') {
-          scheduledIn.setHours(20, 0, 0, 0); // 8:00 PM (20:00)
+          scheduledIn.setHours(20, 0, 0, 0);
         }
 
         let diffInMins = (timeIn - scheduledIn) / (1000 * 60);
         if (diffInMins > 0 && diffInMins <= GRACE_PERIOD_MINUTES) {
-          timeIn = scheduledIn; // I-adjust sa scheduled time (walang late penalty)
+          timeIn = scheduledIn;
         }
 
-        // --- 2. ELAPSED TIME & 1-HR BREAK DEDUCTION ---
         let totalElapsedHrs = (timeOut - timeIn) / (1000 * 60 * 60);
         if (totalElapsedHrs < 0) totalElapsedHrs = 0;
 
@@ -292,8 +283,6 @@ function processDTRPairs() {
         let regHrs = Math.min(actualWorkHrs, REGULAR_HOURS_PER_DAY);
         let rawOtHrs = Math.max(0, actualWorkHrs - REGULAR_HOURS_PER_DAY);
 
-        // --- 3. 30-MINUTE OT THRESHOLD RULE ---
-        // Below 0.5 hrs (30 mins) = 0 OT. Round down to nearest 0.5 hrs.
         let paidOtHrs = rawOtHrs >= 0.5 ? Math.floor(rawOtHrs * 2) / 2 : 0;
 
         const dayMultiplier = DAY_MULTIPLIERS[inLog.dayType] || 1.00;
@@ -302,7 +291,6 @@ function processDTRPairs() {
         let regPay = regHrs >= REGULAR_HOURS_PER_DAY ? (BASIC_DAILY_RATE * dayMultiplier) : (regHrs * effectiveHourlyRate);
         let otPay = paidOtHrs * (effectiveHourlyRate * OVERTIME_MULTIPLIER);
 
-        // --- 4. NIGHT DIFFERENTIAL ---
         let ndHrs = 0;
         if (paidOtHrs > 0 || regHrs > 0) {
           let creditedEndMs = timeIn.getTime() + ((regHrs + (regHrs >= 8 ? 1 : 0) + paidOtHrs) * 60 * 60 * 1000);
@@ -481,12 +469,12 @@ function createSnowControls() {
   const btn = document.createElement('button');
   btn.id = 'snowToggleBtn';
   btn.type = 'button';
-  btn.innerHTML = '❄️ Snow & Music: OFF ▶️';
+  btn.innerHTML = '❄ Snow & Music: OFF ▶️';
 
   btn.onclick = () => {
     isSnowing = !isSnowing;
     if (isSnowing) {
-      btn.innerHTML = '❄️ Snow & Music: ON ⏸️️';
+      btn.innerHTML = '❄️ Snow & Music: ON ⏸';
       btn.style.background = '#0284c7';
       btn.style.color = '#fff';
       startSnow();
@@ -535,18 +523,14 @@ function startSnow() {
 
     snowContainer.appendChild(flake);
 
-    setTimeout(() => {
-      flake.remove();
-    }, duration * 1000);
+    setTimeout(() => { flake.remove(); }, duration * 1000);
   }, 100);
 }
 
 function stopSnow() {
   if (snowInterval) clearInterval(snowInterval);
   const snowContainer = document.getElementById('snowContainer');
-  if (snowContainer) {
-    snowContainer.remove();
-  }
+  if (snowContainer) snowContainer.remove();
 }
 
 function playNote(freq, duration) {
