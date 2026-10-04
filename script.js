@@ -23,29 +23,6 @@ let dtrLogs = JSON.parse(localStorage.getItem('rgserve_dtr_logs')) || [];
 let isSalaryHidden = JSON.parse(localStorage.getItem('rgserve_hide_salary')) || false;
 
 // =========================================================
-// SNOW & MUSIC GLOBALS
-// =========================================================
-let isSnowing = false;
-let snowInterval = null;
-let audioCtx = null;
-let musicInterval = null;
-let currentNoteIndex = 0;
-
-const christmasMelody = [
-  { note: 783.99, duration: 400 },
-  { note: 987.77, duration: 400 },
-  { note: 1174.66, duration: 400 },
-  { note: 1318.51, duration: 600 },
-  { note: 1174.66, duration: 400 },
-  { note: 987.77, duration: 400 },
-  { note: 783.99, duration: 600 },
-  { note: 659.25, duration: 400 },
-  { note: 783.99, duration: 400 },
-  { note: 880.00, duration: 400 },
-  { note: 783.99, duration: 800 }
-];
-
-// =========================================================
 // INITIALIZATION
 // =========================================================
 document.addEventListener('DOMContentLoaded', () => {
@@ -54,7 +31,6 @@ document.addEventListener('DOMContentLoaded', () => {
   setDefaultFilterMonth();
   setDefaultEmployeeName();
   initSalaryToggleBtn();
-  createSnowControls();
   renderTable();
 
   const dtrForm = document.getElementById('dtrForm');
@@ -477,123 +453,4 @@ function exportDTR() {
   a.href = url;
   a.download = `DTR_Export.csv`;
   a.click();
-}
-
-// =========================================================
-// SNOW EFFECT & CHRISTMAS MUSIC CONTROLLER
-// =========================================================
-function createSnowControls() {
-  const btn = document.createElement('button');
-  btn.id = 'snowToggleBtn';
-  btn.type = 'button';
-  btn.innerHTML = '❄ Snow & Music: OFF ▶️';
-
-  btn.onclick = () => {
-    isSnowing = !isSnowing;
-    if (isSnowing) {
-      btn.innerHTML = '❄️ Snow & Music: ON ⏸';
-      btn.style.background = '#0284c7';
-      btn.style.color = '#fff';
-      startSnow();
-      startChristmasMusic();
-    } else {
-      btn.innerHTML = '❄️ Snow & Music: OFF ▶️';
-      btn.style.background = 'rgba(15, 23, 42, 0.85)';
-      btn.style.color = '#38bdf8';
-      stopSnow();
-      stopChristmasMusic();
-    }
-  };
-
-  document.body.appendChild(btn);
-}
-
-function startSnow() {
-  let snowContainer = document.getElementById('snowContainer');
-  if (!snowContainer) {
-    snowContainer = document.createElement('div');
-    snowContainer.id = 'snowContainer';
-    document.body.appendChild(snowContainer);
-  }
-
-  snowInterval = setInterval(() => {
-    if (!isSnowing) return;
-    const flake = document.createElement('div');
-    const size = Math.random() * 8 + 4;
-    const startLeft = Math.random() * 100;
-    const duration = Math.random() * 3 + 2;
-    const opacity = Math.random() * 0.7 + 0.3;
-
-    flake.style.cssText = `
-      position: absolute;
-      top: -10px;
-      left: ${startLeft}vw;
-      width: ${size}px;
-      height: ${size}px;
-      background: white;
-      border-radius: 50%;
-      opacity: ${opacity};
-      filter: blur(1px);
-      box-shadow: 0 0 6px rgba(255, 255, 255, 0.8);
-      animation: fall ${duration}s linear forwards;
-    `;
-
-    snowContainer.appendChild(flake);
-
-    setTimeout(() => { flake.remove(); }, duration * 1000);
-  }, 100);
-}
-
-function stopSnow() {
-  if (snowInterval) clearInterval(snowInterval);
-  const snowContainer = document.getElementById('snowContainer');
-  if (snowContainer) snowContainer.remove();
-}
-
-function playNote(freq, duration) {
-  if (!audioCtx) return;
-
-  const osc = audioCtx.createOscillator();
-  const gain = audioCtx.createGain();
-
-  osc.type = 'sine';
-  osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
-
-  gain.gain.setValueAtTime(0.12, audioCtx.currentTime);
-  gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + (duration / 1000));
-
-  osc.connect(gain);
-  gain.connect(audioCtx.destination);
-
-  osc.start();
-  osc.stop(audioCtx.currentTime + (duration / 1000));
-}
-
-function startChristmasMusic() {
-  if (!audioCtx) {
-    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-  }
-  if (audioCtx.state === 'suspended') {
-    audioCtx.resume();
-  }
-
-  currentNoteIndex = 0;
-  playNextNote();
-}
-
-function playNextNote() {
-  if (!isSnowing) return;
-
-  const item = christmasMelody[currentNoteIndex];
-  playNote(item.note, item.duration);
-
-  currentNoteIndex = (currentNoteIndex + 1) % christmasMelody.length;
-  musicInterval = setTimeout(playNextNote, item.duration + 50);
-}
-
-function stopChristmasMusic() {
-  if (musicInterval) clearTimeout(musicInterval);
-  if (audioCtx && audioCtx.state === 'running') {
-    audioCtx.suspend();
-  }
 }
