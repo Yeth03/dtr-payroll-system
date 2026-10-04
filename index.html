@@ -296,35 +296,45 @@
       gap: 8px;
     }
 
+    /* FIX FOR TABLE OVERFLOW & RESPONSIVENESS */
     .table-wrapper {
       width: 100%;
       overflow-x: auto;
       -webkit-overflow-scrolling: touch;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 6px;
     }
 
     table {
       width: 100%;
       border-collapse: collapse;
-      font-size: 11px;
+      font-size: 10px;
       white-space: nowrap;
+      min-width: 520px; /* Sinisiguradong hindi mauusog paitaas ang mga columns */
     }
 
     th, td {
-      padding: 7px 8px;
+      padding: 6px 8px;
       text-align: left;
       border-bottom: 1px solid rgba(255, 255, 255, 0.15);
     }
 
     th {
-      background: rgba(0, 0, 0, 0.3);
+      background: rgba(0, 0, 0, 0.4);
       color: #00f2fe;
       font-weight: 600;
-      font-size: 10px;
+      font-size: 9px;
       text-transform: uppercase;
     }
 
     tr:hover {
       background: rgba(255, 255, 255, 0.12);
+    }
+
+    /* Highlight para sa Computed Pay column */
+    td:last-child {
+      color: #00ff87;
+      font-weight: bold;
     }
 
     .badge-shift {
@@ -433,6 +443,7 @@
           </div>
         </div>
 
+        <!-- RESPONSIVE SCROLLABLE TABLE WRAPPER -->
         <div class="table-wrapper">
           <table>
             <thead>
