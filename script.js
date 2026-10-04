@@ -2,8 +2,7 @@
 const BASIC_DAILY_RATE = 755.00;
 const REGULAR_HOURS_PER_DAY = 8;
 
-// Exact Hourly Rate: 94.375
-const BASIC_HOURLY_RATE = BASIC_DAILY_RATE / REGULAR_HOURS_PER_DAY; 
+const BASIC_HOURLY_RATE = BASIC_DAILY_RATE / REGULAR_HOURS_PER_DAY; // 94.375
 const OVERTIME_MULTIPLIER = 1.25;
 const NIGHT_DIFF_MULTIPLIER = 0.10; 
 
@@ -22,6 +21,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initLiveClock();
   setDefaultTimestamp();
   setDefaultFilterMonth();
+  setDefaultEmployeeName(); // Set "Yeth Awayan" as default name
   renderTable();
 
   const dtrForm = document.getElementById('dtrForm');
@@ -38,6 +38,13 @@ function initLiveClock() {
       clockEl.textContent = now.toLocaleTimeString('en-US', { hour12: true });
     }
   }, 1000);
+}
+
+function setDefaultEmployeeName() {
+  const empNameInput = document.getElementById('employeeName');
+  if (empNameInput && !empNameInput.value) {
+    empNameInput.value = "Yeth Awayan"; // Default name (puwedeng palitan)
+  }
 }
 
 function setDefaultTimestamp() {
@@ -66,7 +73,8 @@ function handleFormSubmit(e) {
   const empName = empNameInput ? empNameInput.value.trim() : '';
   const shift = document.getElementById('workShift') ? document.getElementById('workShift').value : 'AM';
   const dayType = document.getElementById('dayType') ? document.getElementById('dayType').value : 'REGULAR';
-  const logType = document.getElementById('logType') ? document.getElementById('logType').value : 'IN';
+  const logTypeSelect = document.getElementById('logType');
+  const logType = logTypeSelect ? logTypeSelect.value : 'IN';
   const timestamp = document.getElementById('logTimestamp') ? document.getElementById('logTimestamp').value : '';
 
   if (!empName || !timestamp) {
@@ -86,8 +94,19 @@ function handleFormSubmit(e) {
   dtrLogs.push(logEntry);
   localStorage.setItem('rgserve_dtr_logs', JSON.stringify(dtrLogs));
 
-  showToast(`Log saved for ${empName}`);
-  if (empNameInput) empNameInput.value = '';
+  showToast(`${logType} Saved for ${empName}`);
+
+  // AUTOMATIC SWITCH TO "OUT" KAPAG KATATAPOS LANG MAG "IN"
+  if (logType === 'IN' && logTypeSelect) {
+    logTypeSelect.value = 'OUT';
+  } else if (logType === 'OUT' && logTypeSelect) {
+    logTypeSelect.value = 'IN';
+  }
+
+  // Panatilihin ang pangalang "Yeth Awayan" at i-update ang oras sa kasalukuyan
+  setDefaultEmployeeName();
+  setDefaultTimestamp();
+  
   renderTable();
 }
 
@@ -126,7 +145,6 @@ function deletePairLogs(inId, outId) {
   }
 }
 
-// 30-MINUTES / 1-HOUR OT BLOCK LOGIC
 function calculateOTHours(otInMinutes) {
   if (otInMinutes < 30) {
     return 0;
@@ -137,19 +155,33 @@ function calculateOTHours(otInMinutes) {
   }
 }
 
-// NIGHT DIFFERENTIAL (10:00 PM - 6:00 AM)
+// Night Differential calculation (10:00 PM to 6:00 AM)
 function calculateNightDiffHours(timeIn, timeOut) {
-  let ndHours = 0;
+  let ndMinutes = 0;
   let current = new Date(timeIn.getTime());
+
+  let hasBreak = (timeOut - timeIn) / (1000 * 60 * 60) > 5;
+  let breakDeducted = false;
 
   while (current < timeOut) {
     let hour = current.getHours();
+    
     if (hour >= 22 || hour < 6) {
-      ndHours += 1 / 60;
+      if (hasBreak && !breakDeducted && hour === 22) {
+        current.setMinutes(current.getMinutes() + 60);
+        breakDeducted = true;
+        continue;
+      }
+      ndMinutes += 1;
     }
     current.setMinutes(current.getMinutes() + 1);
   }
-  return ndHours;
+
+  if (hasBreak && !breakDeducted && ndMinutes >= 60) {
+    ndMinutes -= 60;
+  }
+
+  return ndMinutes / 60;
 }
 
 function processDTRPairs() {
@@ -189,7 +221,6 @@ function processDTRPairs() {
 
         let totalHrs = (timeOut - timeIn) / (1000 * 60 * 60);
         
-        // Deduct 1 hr break if work duration exceeds 5 hrs
         let actualWorkHrs = totalHrs > 5 ? totalHrs - 1 : totalHrs;
         if (actualWorkHrs < 0) actualWorkHrs = 0;
 
@@ -201,24 +232,11 @@ function processDTRPairs() {
         const dayMultiplier = DAY_MULTIPLIERS[inLog.dayType] || 1.00;
         const effectiveHourlyRate = BASIC_HOURLY_RATE * dayMultiplier;
 
-        // REGULAR PAY COMPUTATION (Fixed 755.00 kung kumpleto ang 8 hrs)
-        let regPay = 0;
-        if (regHrs >= REGULAR_HOURS_PER_DAY) {
-          regPay = BASIC_DAILY_RATE * dayMultiplier;
-        } else {
-          regPay = regHrs * effectiveHourlyRate;
-        }
-
-        // OT PAY COMPUTATION
+        let regPay = regHrs >= REGULAR_HOURS_PER_DAY ? (BASIC_DAILY_RATE * dayMultiplier) : (regHrs * effectiveHourlyRate);
         let otPay = otHrs * (effectiveHourlyRate * OVERTIME_MULTIPLIER);
 
-        // NIGHT DIFFERENTIAL COMPUTATION
-        let ndPay = 0;
-        if (inLog.shift === 'PM' || inLog.shift === 'NIGHT') {
-          let rawNdHrs = calculateNightDiffHours(timeIn, timeOut);
-          let ndHrs = Math.min(rawNdHrs, actualWorkHrs);
-          ndPay = ndHrs * (effectiveHourlyRate * NIGHT_DIFF_MULTIPLIER);
-        }
+        let ndHrs = calculateNightDiffHours(timeIn, timeOut);
+        let ndPay = ndHrs * (effectiveHourlyRate * NIGHT_DIFF_MULTIPLIER);
 
         const exactPay = regPay + otPay + ndPay;
         const creditedWorkHrs = regHrs + otHrs;
