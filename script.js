@@ -182,6 +182,15 @@ function deletePairLogs(inId, outId) {
   }
 }
 
+function clearAllLogs() {
+  if (confirm("Sigurado ka bang gusto mong burahin LAHAT ng nakatagong logs sa system?")) {
+    dtrLogs = [];
+    localStorage.removeItem('rgserve_dtr_logs');
+    renderTable();
+    showToast("Lahat ng logs ay nabura na!");
+  }
+}
+
 // =========================================================
 // NIGHT DIFFERENTIAL & COMPUTATION
 // =========================================================
@@ -266,7 +275,6 @@ function processDTRPairs() {
         let excessHrs = Math.max(0, actualWorkHrs - REGULAR_HOURS_PER_DAY);
 
         // STRICT OT RULE: Dadagdag lang kapag umabot ng at least 30 minutes (0.5 hr)
-        // Bawat 30 minutes lang nagkakaroon ng bayad (Floor to nearest 0.5)
         let paidOtHrs = 0;
         if (excessHrs >= 0.5) {
           paidOtHrs = Math.floor(excessHrs * 2) / 2;
@@ -275,7 +283,7 @@ function processDTRPairs() {
         const dayMultiplier = DAY_MULTIPLIERS[inLog.dayType] || 1.00;
         const effectiveHourlyRate = BASIC_HOURLY_RATE * dayMultiplier;
 
-        // Regular Pay Calculation (Eksaktong Daily Rate pag kumpleto ang 8 hrs)
+        // Regular Pay Calculation
         let regPay = regHrs >= REGULAR_HOURS_PER_DAY 
           ? (BASIC_DAILY_RATE * dayMultiplier) 
           : (regHrs * effectiveHourlyRate);
@@ -370,10 +378,15 @@ function renderTable() {
   let totalPay = 0;
   let inCount = 0;
   let outCount = 0;
-  const todayStr = new Date().toLocaleDateString();
+  
+  // Tanging ang mga tunay na nakatala sa dtrLogs lamang ngayong araw ang iko-count
+  const now = new Date();
+  const todayStr = `${now.getMonth() + 1}/${now.getDate()}/${now.getFullYear()}`;
 
   dtrLogs.forEach(l => {
-    if (new Date(l.timestamp).toLocaleDateString() === todayStr) {
+    const logDate = new Date(l.timestamp);
+    const logDateStr = `${logDate.getMonth() + 1}/${logDate.getDate()}/${logDate.getFullYear()}`;
+    if (logDateStr === todayStr) {
       if (l.logType === 'IN') inCount++;
       if (l.logType === 'OUT') outCount++;
     }
