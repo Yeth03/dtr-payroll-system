@@ -16,12 +16,14 @@ const DAY_MULTIPLIERS = {
 };
 
 let dtrLogs = JSON.parse(localStorage.getItem('rgserve_dtr_logs')) || [];
+let isSalaryHidden = JSON.parse(localStorage.getItem('rgserve_hide_salary')) || false;
 
 document.addEventListener('DOMContentLoaded', () => {
   initLiveClock();
   setDefaultTimestamp();
   setDefaultFilterMonth();
   setDefaultEmployeeName();
+  initSalaryToggleBtn();
   renderTable();
 
   const dtrForm = document.getElementById('dtrForm');
@@ -64,6 +66,37 @@ function setDefaultFilterMonth() {
   const year = now.getFullYear();
   const month = String(now.getMonth() + 1).padStart(2, '0');
   filterMonth.value = `${year}-${month}`;
+}
+
+// HIDE / SHOW SALARY BUTTON INITIALIZATION
+function initSalaryToggleBtn() {
+  let btn = document.getElementById('toggleSalaryBtn');
+  if (!btn) {
+    const overview = document.getElementById('payrollOverview');
+    if (overview && overview.parentNode) {
+      btn = document.createElement('button');
+      btn.id = 'toggleSalaryBtn';
+      btn.type = 'button';
+      btn.style.cssText = 'margin-left: 10px; padding: 4px 10px; cursor: pointer; border-radius: 4px; border: 1px solid #4a5568; background: #2d3748; color: #fff; font-size: 12px; font-weight: bold;';
+      overview.parentNode.insertBefore(btn, overview.nextSibling);
+    }
+  }
+
+  if (btn) {
+    updateSalaryBtnLabel(btn);
+    btn.onclick = () => {
+      isSalaryHidden = !isSalaryHidden;
+      localStorage.setItem('rgserve_hide_salary', JSON.stringify(isSalaryHidden));
+      updateSalaryBtnLabel(btn);
+      renderTable();
+    };
+  }
+}
+
+function updateSalaryBtnLabel(btn) {
+  if (btn) {
+    btn.textContent = isSalaryHidden ? '👁️ Show Salary' : '🙈 Hide Salary';
+  }
 }
 
 function handleFormSubmit(e) {
@@ -143,7 +176,7 @@ function deletePairLogs(inId, outId) {
   }
 }
 
-// Night Differential calculation (10:00 PM to 6:00 AM)
+// Night Differential Calculation (10:00 PM to 6:00 AM)
 function calculateNightDiffHours(timeIn, timeOut) {
   let ndMinutes = 0;
   let current = new Date(timeIn.getTime());
@@ -157,11 +190,8 @@ function calculateNightDiffHours(timeIn, timeOut) {
   }
 
   let totalND = ndMinutes / 60;
-  
-  // Kapag pumatak ng buong night shift (10 PM - 6 AM = 8 hrs window),
-  // may 1 hr break kaya 7 hrs ang lalabas na ND.
   if (totalND > 5) {
-    totalND -= 1; 
+    totalND -= 1; // 1 hr break deduction
   }
 
   return Math.max(0, totalND);
@@ -173,7 +203,7 @@ function processDTRPairs() {
   const pendingIns = {};
 
   sortedLogs.forEach(log => {
-    const key = `${log.employee}`; // I-group base sa employee
+    const key = `${log.employee}`;
 
     if (log.logType === 'IN') {
       if (pendingIns[key]) {
@@ -203,39 +233,25 @@ function processDTRPairs() {
         const timeIn = new Date(inLog.timestamp);
         const timeOut = new Date(log.timestamp);
 
-        // Compute total hours
         let totalElapsedHrs = (timeOut - timeIn) / (1000 * 60 * 60);
         if (totalElapsedHrs < 0) totalElapsedHrs = 0;
 
-        // Bawas 1 hour break kapag higit sa 5 hours rendering
         let actualWorkHrs = totalElapsedHrs > 5 ? totalElapsedHrs - 1 : totalElapsedHrs;
 
-        // Regular Work Hours (Max 8 hrs)
         let regHrs = Math.min(actualWorkHrs, REGULAR_HOURS_PER_DAY);
-        
-        // Raw Overtime Hours (Sobra sa 8 hrs)
         let rawOtHrs = Math.max(0, actualWorkHrs - REGULAR_HOURS_PER_DAY);
-
-        // ROUND DOWN TO NEAREST 0.5 HOUR (3.4 -> 3.0, 3.8 -> 3.5, 4.1 -> 4.0)
         let paidOtHrs = Math.floor(rawOtHrs * 2) / 2;
 
         const dayMultiplier = DAY_MULTIPLIERS[inLog.dayType] || 1.00;
         const effectiveHourlyRate = BASIC_HOURLY_RATE * dayMultiplier;
 
-        // 1. Basic Pay
         let regPay = regHrs >= REGULAR_HOURS_PER_DAY ? (BASIC_DAILY_RATE * dayMultiplier) : (regHrs * effectiveHourlyRate);
-        
-        // 2. Overtime Pay (125% rate)
         let otPay = paidOtHrs * (effectiveHourlyRate * OVERTIME_MULTIPLIER);
 
-        // 3. Night Differential Pay (10% rate)
         let ndHrs = calculateNightDiffHours(timeIn, timeOut);
         let ndPay = ndHrs * (effectiveHourlyRate * NIGHT_DIFF_MULTIPLIER);
 
-        // KABUUANG SAHOD
         const exactPay = regPay + otPay + ndPay;
-
-        // Credited Work Hours (8 hrs regular + OT)
         let creditedWorkHrs = regHrs + paidOtHrs;
 
         pairedData.push({
@@ -324,6 +340,12 @@ function renderTable() {
 
   if (pairs.length === 0) {
     tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; padding: 12px; color: #b0bac5;">Walang logs na nakita. Mag-add ng bago sa form sa itaas.</td></tr>`;
+    
+    const overview = document.getElementById('payrollOverview');
+    if (overview) {
+      const payText = isSalaryHidden ? '••••••' : '₱0.00';
+      overview.textContent = `Est. Work: 0.0 hrs | Pay: ${payText}`;
+    }
     return;
   }
 
@@ -347,6 +369,8 @@ function renderTable() {
       deleteBtnHTML = `<button class="del-btn" onclick="deleteSingleLog(${pair.outId})">DEL</button>`;
     }
 
+    const displayPay = isSalaryHidden ? '••••••' : `₱${pair.computedPay.toFixed(2)}`;
+
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td>${pair.employee}</td>
@@ -356,7 +380,7 @@ function renderTable() {
       <td>${pair.timeInStr}</td>
       <td>${pair.timeOutStr}</td>
       <td>${pair.workHrs.toFixed(1)} hrs (${pair.otHrs.toFixed(1)} OT)</td>
-      <td>₱${pair.computedPay.toFixed(2)}</td>
+      <td>${displayPay}</td>
       <td style="text-align: center;">${deleteBtnHTML}</td>
     `;
     tbody.appendChild(tr);
@@ -364,7 +388,8 @@ function renderTable() {
 
   const overview = document.getElementById('payrollOverview');
   if (overview) {
-    overview.textContent = `Est. Work: ${totalHours.toFixed(1)} hrs | Pay: ₱${totalPay.toFixed(2)}`;
+    const totalPayDisplay = isSalaryHidden ? '••••••' : `₱${totalPay.toFixed(2)}`;
+    overview.textContent = `Est. Work: ${totalHours.toFixed(1)} hrs | Pay: ${totalPayDisplay}`;
   }
 }
 
