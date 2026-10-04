@@ -296,7 +296,7 @@
       gap: 8px;
     }
 
-    /* FIX FOR TABLE OVERFLOW & RESPONSIVENESS */
+    /* RESPONSIVE SCROLLABLE TABLE WRAPPER */
     .table-wrapper {
       width: 100%;
       overflow-x: auto;
@@ -310,7 +310,7 @@
       border-collapse: collapse;
       font-size: 10px;
       white-space: nowrap;
-      min-width: 520px; /* Sinisiguradong hindi mauusog paitaas ang mga columns */
+      min-width: 600px;
     }
 
     th, td {
@@ -331,7 +331,6 @@
       background: rgba(255, 255, 255, 0.12);
     }
 
-    /* Highlight para sa Computed Pay column */
     td:last-child {
       color: #00ff87;
       font-weight: bold;
@@ -345,6 +344,18 @@
     }
     .badge-am { background: rgba(0, 242, 254, 0.2); color: #00f2fe; }
     .badge-pm { background: rgba(255, 95, 86, 0.2); color: #ff5f56; }
+
+    .badge-day {
+      padding: 2px 5px;
+      border-radius: 3px;
+      font-size: 8px;
+      font-weight: bold;
+      text-transform: uppercase;
+    }
+    .day-reg { background: rgba(255, 255, 255, 0.1); color: #ccc; }
+    .day-rest { background: rgba(255, 193, 7, 0.2); color: #ffc107; }
+    .day-spl { background: rgba(156, 39, 176, 0.2); color: #e040fb; }
+    .day-reghol { background: rgba(244, 67, 54, 0.2); color: #ff5252; }
   </style>
 </head>
 <body>
@@ -399,6 +410,17 @@
             <option value="PM">PM Shift (Night)</option>
           </select>
 
+          <!-- BAGONG SAKOP: DAY TYPE / HOLIDAY / RESTDAY -->
+          <label class="label-text">Day Type / Premium</label>
+          <select id="dayType" required>
+            <option value="REGULAR">Regular Work Day (100%)</option>
+            <option value="REST_DAY">Rest Day Duty / Cancel Restday (130%)</option>
+            <option value="SPECIAL_HOLIDAY">Special Non-Working Holiday (130%)</option>
+            <option value="REGULAR_HOLIDAY">Regular Holiday (200%)</option>
+            <option value="REST_SPECIAL">Special Holiday on Rest Day (150%)</option>
+            <option value="REST_REGULAR">Regular Holiday on Rest Day (260%)</option>
+          </select>
+
           <label class="label-text">Log Type</label>
           <select id="logType" required>
             <option value="IN">TIME IN</option>
@@ -450,6 +472,7 @@
               <tr>
                 <th>Employee</th>
                 <th>Shift</th>
+                <th>Type</th>
                 <th>Date</th>
                 <th>In</th>
                 <th>Out</th>
