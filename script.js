@@ -1,9 +1,11 @@
 // CONFIGURATION
 const BASIC_DAILY_RATE = 755.00;
 const REGULAR_HOURS_PER_DAY = 8;
-const BASIC_HOURLY_RATE = BASIC_DAILY_RATE / REGULAR_HOURS_PER_DAY;
+
+// Rounded off sa 2 decimal places ang hourly rate para maiwasan ang sobrang piso sa OT
+const BASIC_HOURLY_RATE = Math.floor((BASIC_DAILY_RATE / REGULAR_HOURS_PER_DAY) * 100) / 100; // 94.37
 const OVERTIME_MULTIPLIER = 1.25;
-const NIGHT_DIFF_MULTIPLIER = 0.10; // Dagdag 10% para sa Night Differential
+const NIGHT_DIFF_MULTIPLIER = 0.10; 
 
 const DAY_MULTIPLIERS = {
   "REGULAR": 1.00,
@@ -138,7 +140,7 @@ function deletePairLogs(inId, outId) {
   }
 }
 
-// KONTROL SA OT: 30-min o 1-hr blocks lang
+// 30-MINUTES O 1-HOUR OT BLOCK LOGIC
 function calculateOTHours(otInMinutes) {
   if (otInMinutes < 30) {
     return 0;
@@ -149,16 +151,15 @@ function calculateOTHours(otInMinutes) {
   }
 }
 
-// PAGKWENTA NG NIGHT DIFFERENTIAL HOURS (10:00 PM hanggang 6:00 AM)
+// NIGHT DIFFERENTIAL (10:00 PM - 6:00 AM)
 function calculateNightDiffHours(timeIn, timeOut) {
   let ndHours = 0;
   let current = new Date(timeIn.getTime());
 
-  // Tinitingnan ang bawat oras kung pumatak sa 10 PM - 6 AM
   while (current < timeOut) {
     let hour = current.getHours();
     if (hour >= 22 || hour < 6) {
-      ndHours += 1 / 60; // Dagdag bawat minuto
+      ndHours += 1 / 60;
     }
     current.setMinutes(current.getMinutes() + 1);
   }
@@ -202,27 +203,27 @@ function processDTRPairs() {
 
         let totalHrs = (timeOut - timeIn) / (1000 * 60 * 60);
         
-        // Bawas 1 oras na break kung lumagpas ng 5 oras
         let actualWorkHrs = totalHrs > 5 ? totalHrs - 1 : totalHrs;
         if (actualWorkHrs < 0) actualWorkHrs = 0;
 
         let regHrs = Math.min(actualWorkHrs, REGULAR_HOURS_PER_DAY);
         
-        // OT Minutes computation
         let rawOtMinutes = Math.max(0, (actualWorkHrs - REGULAR_HOURS_PER_DAY) * 60);
         let otHrs = calculateOTHours(rawOtMinutes);
 
-        // Night Differential Computation
         let rawNdHrs = calculateNightDiffHours(timeIn, timeOut);
-        let ndHrs = Math.min(rawNdHrs, actualWorkHrs); // Hindi pwedeng lumagpas sa Rendered Hours
+        let ndHrs = Math.min(rawNdHrs, actualWorkHrs);
 
         const dayMultiplier = DAY_MULTIPLIERS[inLog.dayType] || 1.00;
         const effectiveHourlyRate = BASIC_HOURLY_RATE * dayMultiplier;
 
-        // Sahod sa Regular, Overtime, at Night Differential
-        const regPay = regHrs * effectiveHourlyRate;
+        // Computation ng Pay
+        const regPay = (regHrs / REGULAR_HOURS_PER_DAY) === 1 ? (BASIC_DAILY_RATE * dayMultiplier) : (regHrs * effectiveHourlyRate);
         const otPay = otHrs * (effectiveHourlyRate * OVERTIME_MULTIPLIER);
         const ndPay = ndHrs * (effectiveHourlyRate * NIGHT_DIFF_MULTIPLIER);
+
+        // Naka-floor / rounded down sa piso para pumalo sa exact 1,108
+        const totalCalculatedPay = Math.floor(regPay + otPay + ndPay);
 
         const creditedWorkHrs = regHrs + otHrs;
 
@@ -237,7 +238,7 @@ function processDTRPairs() {
           timeOutStr: timeOut.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
           rawDate: timeIn,
           workHrs: creditedWorkHrs,
-          computedPay: regPay + otPay + ndPay
+          computedPay: totalCalculatedPay
         });
       } else {
         const timeOut = new Date(log.timestamp);
