@@ -8,7 +8,7 @@ const BASIC_HOURLY_RATE = BASIC_DAILY_RATE / REGULAR_HOURS_PER_DAY; // 94.375
 const OVERTIME_MULTIPLIER = 1.25;
 const NIGHT_DIFF_MULTIPLIER = 0.10; 
 
-const GRACE_PERIOD_MINUTES = 15; 
+const GRACE_PERIOD_MINUTES = 15; // Allows early in up to 15 mins before 6:00
 
 const DAY_MULTIPLIERS = {
   "REGULAR": 1.00,
@@ -207,7 +207,7 @@ function calculateNightDiffHours(timeIn, timeOut) {
   }
 
   let totalND = ndMinutes / 60;
-  if (totalND > 5) totalND -= 1;
+  if (totalND > 5) totalND -= 1; // Unpaid meal break during night shift
 
   return Math.max(0, totalND);
 }
@@ -248,55 +248,48 @@ function processDTRPairs() {
         let timeIn = new Date(inLog.timestamp);
         const timeOut = new Date(log.timestamp);
 
-        // Grace period computation for TIME IN (15 mins tolerance)
+        // ADJUSTED FOR 6:00 TO 6:00 SHIFTING:
         let scheduledIn = new Date(timeIn.getTime());
         if (inLog.shift === 'AM') {
-          scheduledIn.setHours(8, 0, 0, 0);
+          scheduledIn.setHours(6, 0, 0, 0);  // 6:00 AM Standard Start
         } else if (inLog.shift === 'PM') {
-          scheduledIn.setHours(20, 0, 0, 0);
+          scheduledIn.setHours(18, 0, 0, 0); // 6:00 PM Standard Start
         }
 
-        let diffInMins = (timeIn - scheduledIn) / (1000 * 60);
-        if (diffInMins > 0 && diffInMins <= GRACE_PERIOD_MINUTES) {
+        // Grace period check for early entry (e.g. 5:57 AM adjusts to 6:00 AM)
+        let diffInMins = (scheduledIn - timeIn) / (1000 * 60);
+        if (diffInMins >= 0 && diffInMins <= GRACE_PERIOD_MINUTES) {
           timeIn = scheduledIn;
         }
 
-        // Total Elapsed Time
+        // Total Elapsed Time in hours
         let totalElapsedHrs = (timeOut - timeIn) / (1000 * 60 * 60);
         if (totalElapsedHrs < 0) totalElapsedHrs = 0;
 
         // Bawas 1 hour meal break kapag lampas 5 hours
         let actualWorkHrs = totalElapsedHrs > 5 ? totalElapsedHrs - 1 : totalElapsedHrs;
 
-        // STRICT CAPPING: Regular work hours is capped at exactly 8 hours
+        // Capped at 8 hours for Regular Shift
         let regHrs = Math.min(actualWorkHrs, REGULAR_HOURS_PER_DAY);
         
         // Excess hours above 8 hours
         let excessHrs = Math.max(0, actualWorkHrs - REGULAR_HOURS_PER_DAY);
 
-        // =========================================================
-        // STRICT 30-MINUTE / 1-HOUR OVERTIME STEP RULE
-        // (0-29 mins excess = DISCARDED / 0 hr OT)
-        // (30-59 mins excess = 0.5 hr OT)
-        // (60 mins excess = 1.0 hr OT)
-        // =========================================================
-        let paidOtHrs = 0;
-        if (excessHrs >= 0.5) { 
-          paidOtHrs = Math.floor(excessHrs * 2) / 2; // Rounds down to nearest 0.5 hr (30 mins)
-        }
+        // STRICT NO-MINUTE OT: DISCARD ALL MINUTES (FLATTEN TO WHOLE HOURS)
+        let paidOtHrs = Math.floor(excessHrs);
 
         const dayMultiplier = DAY_MULTIPLIERS[inLog.dayType] || 1.00;
         const effectiveHourlyRate = BASIC_HOURLY_RATE * dayMultiplier;
 
-        // REGULAR PAY: Fixed sa ₱755.00 * Day Multiplier kapag nakakumpleto ng 8 hrs
+        // Regular Pay (₱755.00 for full 8 hrs)
         let regPay = 0;
         if (actualWorkHrs >= REGULAR_HOURS_PER_DAY) {
           regPay = BASIC_DAILY_RATE * dayMultiplier;
         } else {
-          regPay = regHrs * effectiveHourlyRate; // Pro-rated kapag kulang sa 8 hrs (undertime)
+          regPay = regHrs * effectiveHourlyRate;
         }
 
-        // OVERTIME PAY: Dagdag bayad kapag paidOtHrs > 0
+        // Overtime Pay
         let otPay = paidOtHrs * (effectiveHourlyRate * OVERTIME_MULTIPLIER);
 
         // Night Differential Computation
@@ -399,7 +392,8 @@ function renderTable() {
     }
   });
 
-  if (document.getElementById('totalLogs')) document.getElementById('totalLogs').textContent = dtrLogs.length;
+  // Updated Total Logs counter to count TODAY'S logs only
+  if (document.getElementById('totalLogs')) document.getElementById('totalLogs').textContent = inCount + outCount;
   if (document.getElementById('timeInCount')) document.getElementById('timeInCount').textContent = inCount;
   if (document.getElementById('timeOutCount')) document.getElementById('timeOutCount').textContent = outCount;
 
