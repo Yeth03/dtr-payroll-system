@@ -1,10 +1,15 @@
-// CONFIGURATION
+// =========================================================
+// DTR PAYROLL CONFIGURATION
+// =========================================================
 const BASIC_DAILY_RATE = 755.00;
 const REGULAR_HOURS_PER_DAY = 8;
 
 const BASIC_HOURLY_RATE = BASIC_DAILY_RATE / REGULAR_HOURS_PER_DAY; // 94.375
 const OVERTIME_MULTIPLIER = 1.25;
 const NIGHT_DIFF_MULTIPLIER = 0.10; 
+
+// Company Policy Adjustments
+const GRACE_PERIOD_MINUTES = 15; // 15 mins grace period sa Time IN
 
 const DAY_MULTIPLIERS = {
   "REGULAR": 1.00,
@@ -18,14 +23,16 @@ const DAY_MULTIPLIERS = {
 let dtrLogs = JSON.parse(localStorage.getItem('rgserve_dtr_logs')) || [];
 let isSalaryHidden = JSON.parse(localStorage.getItem('rgserve_hide_salary')) || false;
 
+// =========================================================
 // SNOW & MUSIC GLOBALS
+// =========================================================
 let isSnowing = false;
 let snowInterval = null;
 let audioCtx = null;
 let musicInterval = null;
 let currentNoteIndex = 0;
 
-// "All I Want for Christmas Is You" Intro Melody Frequencies & Durations
+// "All I Want for Christmas Is You" Intro Melody (Frequencies & Durations)
 const christmasMelody = [
   { note: 783.99, duration: 400 }, // G5
   { note: 987.77, duration: 400 }, // B5
@@ -40,6 +47,9 @@ const christmasMelody = [
   { note: 783.99, duration: 800 }, // G5
 ];
 
+// =========================================================
+// INITIALIZATION
+// =========================================================
 document.addEventListener('DOMContentLoaded', () => {
   initLiveClock();
   setDefaultTimestamp();
@@ -121,6 +131,9 @@ function updateSalaryBtnLabel(btn) {
   }
 }
 
+// =========================================================
+// FORM HANDLING
+// =========================================================
 function handleFormSubmit(e) {
   e.preventDefault();
   
@@ -198,7 +211,9 @@ function deletePairLogs(inId, outId) {
   }
 }
 
-// Night Differential Calculation (10:00 PM to 6:00 AM)
+// =========================================================
+// NIGHT DIFFERENTIAL & DTR COMPUTATION
+// =========================================================
 function calculateNightDiffHours(timeIn, timeOut) {
   let ndMinutes = 0;
   let current = new Date(timeIn.getTime());
@@ -213,7 +228,7 @@ function calculateNightDiffHours(timeIn, timeOut) {
 
   let totalND = ndMinutes / 60;
   if (totalND > 5) {
-    totalND -= 1; // 1 hr break deduction
+    totalND -= 1; // 1 hr break deduction for overnight
   }
 
   return Math.max(0, totalND);
@@ -252,9 +267,23 @@ function processDTRPairs() {
         const inLog = pendingIns[key];
         delete pendingIns[key];
 
-        const timeIn = new Date(inLog.timestamp);
+        let timeIn = new Date(inLog.timestamp);
         const timeOut = new Date(log.timestamp);
 
+        // --- 1. APPLY 15-MINUTE GRACE PERIOD SA TIME IN ---
+        let scheduledIn = new Date(timeIn.getTime());
+        if (inLog.shift === 'AM') {
+          scheduledIn.setHours(8, 0, 0, 0); // 8:00 AM
+        } else if (inLog.shift === 'PM') {
+          scheduledIn.setHours(20, 0, 0, 0); // 8:00 PM (20:00)
+        }
+
+        let diffInMins = (timeIn - scheduledIn) / (1000 * 60);
+        if (diffInMins > 0 && diffInMins <= GRACE_PERIOD_MINUTES) {
+          timeIn = scheduledIn; // I-adjust sa scheduled time (walang late penalty)
+        }
+
+        // --- 2. ELAPSED TIME & 1-HR BREAK DEDUCTION ---
         let totalElapsedHrs = (timeOut - timeIn) / (1000 * 60 * 60);
         if (totalElapsedHrs < 0) totalElapsedHrs = 0;
 
@@ -263,9 +292,8 @@ function processDTRPairs() {
         let regHrs = Math.min(actualWorkHrs, REGULAR_HOURS_PER_DAY);
         let rawOtHrs = Math.max(0, actualWorkHrs - REGULAR_HOURS_PER_DAY);
 
-        // 30-MINUTE THRESHOLD RULE:
-        // Raw OT below 0.5 hrs (30 mins) is ignored (0 OT).
-        // OT is counted in 30-minute (0.5 hr) increments.
+        // --- 3. 30-MINUTE OT THRESHOLD RULE ---
+        // Below 0.5 hrs (30 mins) = 0 OT. Round down to nearest 0.5 hrs.
         let paidOtHrs = rawOtHrs >= 0.5 ? Math.floor(rawOtHrs * 2) / 2 : 0;
 
         const dayMultiplier = DAY_MULTIPLIERS[inLog.dayType] || 1.00;
@@ -274,7 +302,7 @@ function processDTRPairs() {
         let regPay = regHrs >= REGULAR_HOURS_PER_DAY ? (BASIC_DAILY_RATE * dayMultiplier) : (regHrs * effectiveHourlyRate);
         let otPay = paidOtHrs * (effectiveHourlyRate * OVERTIME_MULTIPLIER);
 
-        // Compute Night Diff based on credited valid work/OT time only
+        // --- 4. NIGHT DIFFERENTIAL ---
         let ndHrs = 0;
         if (paidOtHrs > 0 || regHrs > 0) {
           let creditedEndMs = timeIn.getTime() + ((regHrs + (regHrs >= 8 ? 1 : 0) + paidOtHrs) * 60 * 60 * 1000);
@@ -294,7 +322,7 @@ function processDTRPairs() {
           shift: inLog.shift,
           dayType: inLog.dayType,
           date: timeIn.toLocaleDateString(),
-          timeInStr: timeIn.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          timeInStr: new Date(inLog.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
           timeOutStr: timeOut.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
           rawDate: timeIn,
           workHrs: creditedWorkHrs,
@@ -343,6 +371,9 @@ function processDTRPairs() {
   return pairedData;
 }
 
+// =========================================================
+// TABLE RENDER & EXPORT
+// =========================================================
 function renderTable() {
   const tbody = document.getElementById('dtrTableBody');
   if (!tbody) return;
@@ -446,7 +477,6 @@ function exportDTR() {
 // =========================================================
 // SNOW EFFECT & CHRISTMAS MUSIC CONTROLLER
 // =========================================================
-
 function createSnowControls() {
   const btn = document.createElement('button');
   btn.id = 'snowToggleBtn';
@@ -519,7 +549,6 @@ function stopSnow() {
   }
 }
 
-// WEB AUDIO SYNTHESIZER FOR MUSIC
 function playNote(freq, duration) {
   if (!audioCtx) return;
 
