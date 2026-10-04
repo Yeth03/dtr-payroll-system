@@ -3,6 +3,7 @@ const BASIC_DAILY_RATE = 755.00;
 const REGULAR_HOURS_PER_DAY = 8;
 const BASIC_HOURLY_RATE = BASIC_DAILY_RATE / REGULAR_HOURS_PER_DAY;
 const OVERTIME_MULTIPLIER = 1.25;
+const NIGHT_DIFF_MULTIPLIER = 0.10; // Dagdag 10% para sa Night Differential
 
 const DAY_MULTIPLIERS = {
   "REGULAR": 1.00,
@@ -81,7 +82,7 @@ function handleFormSubmit(e) {
   const timestamp = document.getElementById('logTimestamp') ? document.getElementById('logTimestamp').value : '';
 
   if (!empName || !timestamp) {
-    alert("Pakilagay ang pangalan ng employee at date/time!");
+    alert("Pakilagay ang pangalan ng employee at date/time.");
     return;
   }
 
@@ -121,7 +122,6 @@ function showToast(msg) {
   }, 2500);
 }
 
-// DIREKTANG PAGBURA NG LOG GAMIT ANG ID
 function deleteSingleLog(id) {
   if (confirm("Gusto mo bang burahin ang log na ito?")) {
     dtrLogs = dtrLogs.filter(log => log.id !== id);
@@ -130,13 +130,39 @@ function deleteSingleLog(id) {
   }
 }
 
-// DIREKTANG PAGBURA NG DALAWA (IN + OUT)
 function deletePairLogs(inId, outId) {
   if (confirm("Gusto mo bang burahin ang buong record (IN at OUT)?")) {
     dtrLogs = dtrLogs.filter(log => log.id !== inId && log.id !== outId);
     localStorage.setItem('rgserve_dtr_logs', JSON.stringify(dtrLogs));
     renderTable();
   }
+}
+
+// KONTROL SA OT: 30-min o 1-hr blocks lang
+function calculateOTHours(otInMinutes) {
+  if (otInMinutes < 30) {
+    return 0;
+  } else if (otInMinutes < 60) {
+    return 0.5;
+  } else {
+    return Math.floor(otInMinutes / 60);
+  }
+}
+
+// PAGKWENTA NG NIGHT DIFFERENTIAL HOURS (10:00 PM hanggang 6:00 AM)
+function calculateNightDiffHours(timeIn, timeOut) {
+  let ndHours = 0;
+  let current = new Date(timeIn.getTime());
+
+  // Tinitingnan ang bawat oras kung pumatak sa 10 PM - 6 AM
+  while (current < timeOut) {
+    let hour = current.getHours();
+    if (hour >= 22 || hour < 6) {
+      ndHours += 1 / 60; // Dagdag bawat minuto
+    }
+    current.setMinutes(current.getMinutes() + 1);
+  }
+  return ndHours;
 }
 
 function processDTRPairs() {
@@ -175,17 +201,30 @@ function processDTRPairs() {
         const timeOut = new Date(log.timestamp);
 
         let totalHrs = (timeOut - timeIn) / (1000 * 60 * 60);
+        
+        // Bawas 1 oras na break kung lumagpas ng 5 oras
         let actualWorkHrs = totalHrs > 5 ? totalHrs - 1 : totalHrs;
         if (actualWorkHrs < 0) actualWorkHrs = 0;
 
         let regHrs = Math.min(actualWorkHrs, REGULAR_HOURS_PER_DAY);
-        let otHrs = Math.max(0, actualWorkHrs - REGULAR_HOURS_PER_DAY);
+        
+        // OT Minutes computation
+        let rawOtMinutes = Math.max(0, (actualWorkHrs - REGULAR_HOURS_PER_DAY) * 60);
+        let otHrs = calculateOTHours(rawOtMinutes);
+
+        // Night Differential Computation
+        let rawNdHrs = calculateNightDiffHours(timeIn, timeOut);
+        let ndHrs = Math.min(rawNdHrs, actualWorkHrs); // Hindi pwedeng lumagpas sa Rendered Hours
 
         const dayMultiplier = DAY_MULTIPLIERS[inLog.dayType] || 1.00;
         const effectiveHourlyRate = BASIC_HOURLY_RATE * dayMultiplier;
 
+        // Sahod sa Regular, Overtime, at Night Differential
         const regPay = regHrs * effectiveHourlyRate;
         const otPay = otHrs * (effectiveHourlyRate * OVERTIME_MULTIPLIER);
+        const ndPay = ndHrs * (effectiveHourlyRate * NIGHT_DIFF_MULTIPLIER);
+
+        const creditedWorkHrs = regHrs + otHrs;
 
         pairedData.push({
           inId: inLog.id,
@@ -197,8 +236,8 @@ function processDTRPairs() {
           timeInStr: timeIn.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
           timeOutStr: timeOut.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
           rawDate: timeIn,
-          workHrs: actualWorkHrs,
-          computedPay: regPay + otPay
+          workHrs: creditedWorkHrs,
+          computedPay: regPay + otPay + ndPay
         });
       } else {
         const timeOut = new Date(log.timestamp);
@@ -284,14 +323,13 @@ function renderTable() {
     totalHours += pair.workHrs;
     totalPay += pair.computedPay;
 
-    // PAGBUBUO NG DELETE BUTTON HTML
     let deleteBtnHTML = '';
     if (pair.inId && pair.outId) {
-      deleteBtnHTML = `<button onclick="deletePairLogs(${pair.inId}, ${pair.outId})" style="background:#ff5f56; color:#fff; border:none; padding:4px 8px; border-radius:3px; cursor:pointer; font-weight:bold;">DEL</button>`;
+      deleteBtnHTML = `<button class="del-btn" onclick="deletePairLogs(${pair.inId}, ${pair.outId})">DEL</button>`;
     } else if (pair.inId) {
-      deleteBtnHTML = `<button onclick="deleteSingleLog(${pair.inId})" style="background:#ff5f56; color:#fff; border:none; padding:4px 8px; border-radius:3px; cursor:pointer; font-weight:bold;">DEL</button>`;
+      deleteBtnHTML = `<button class="del-btn" onclick="deleteSingleLog(${pair.inId})">DEL</button>`;
     } else if (pair.outId) {
-      deleteBtnHTML = `<button onclick="deleteSingleLog(${pair.outId})" style="background:#ff5f56; color:#fff; border:none; padding:4px 8px; border-radius:3px; cursor:pointer; font-weight:bold;">DEL</button>`;
+      deleteBtnHTML = `<button class="del-btn" onclick="deleteSingleLog(${pair.outId})">DEL</button>`;
     }
 
     const tr = document.createElement('tr');
