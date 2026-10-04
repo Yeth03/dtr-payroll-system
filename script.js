@@ -486,7 +486,7 @@ function createSnowControls() {
   btn.onclick = () => {
     isSnowing = !isSnowing;
     if (isSnowing) {
-      btn.innerHTML = '❄️ Snow & Music: ON ⏸️';
+      btn.innerHTML = '❄️ Snow & Music: ON ⏸️️';
       btn.style.background = '#0284c7';
       btn.style.color = '#fff';
       startSnow();
