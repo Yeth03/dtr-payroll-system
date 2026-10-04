@@ -143,7 +143,7 @@ function deletePairLogs(inId, outId) {
   }
 }
 
-// Full Night Differential calculation (10:00 PM to 6:00 AM window)
+// Night Differential calculation (10:00 PM to 6:00 AM window)
 function calculateNightDiffHours(timeIn, timeOut) {
   let ndMinutes = 0;
   let current = new Date(timeIn.getTime());
@@ -156,7 +156,7 @@ function calculateNightDiffHours(timeIn, timeOut) {
     current.setMinutes(current.getMinutes() + 1);
   }
 
-  return ndMinutes / 60; // Direct total ND hours without break deduction
+  return ndMinutes / 60;
 }
 
 function processDTRPairs() {
@@ -182,6 +182,7 @@ function processDTRPairs() {
           timeOutStr: '--:--',
           rawDate: prevTime,
           workHrs: 0,
+          otHrs: 0,
           computedPay: 0
         });
       }
@@ -204,8 +205,11 @@ function processDTRPairs() {
         // Regular Work Hours (Max 8 hrs)
         let regHrs = Math.min(actualWorkHrs, REGULAR_HOURS_PER_DAY);
         
-        // Overtime Hours (Anything excess of 8 hrs)
-        let otHrs = Math.max(0, actualWorkHrs - REGULAR_HOURS_PER_DAY);
+        // Raw Overtime Hours (Lagpas sa 8 hrs)
+        let rawOtHrs = Math.max(0, actualWorkHrs - REGULAR_HOURS_PER_DAY);
+
+        // ROUND DOWN TO NEAREST 0.5 HOUR (e.g. 3.4 -> 3.0, 3.8 -> 3.5, 4.1 -> 4.0)
+        let paidOtHrs = Math.floor(rawOtHrs * 2) / 2;
 
         const dayMultiplier = DAY_MULTIPLIERS[inLog.dayType] || 1.00;
         const effectiveHourlyRate = BASIC_HOURLY_RATE * dayMultiplier;
@@ -213,14 +217,17 @@ function processDTRPairs() {
         // Basic Pay
         let regPay = regHrs >= REGULAR_HOURS_PER_DAY ? (BASIC_DAILY_RATE * dayMultiplier) : (regHrs * effectiveHourlyRate);
         
-        // Exact Overtime Pay (125% rate)
-        let otPay = otHrs * (effectiveHourlyRate * OVERTIME_MULTIPLIER);
+        // Overtime Pay base sa rounded paid OT hours (125% rate)
+        let otPay = paidOtHrs * (effectiveHourlyRate * OVERTIME_MULTIPLIER);
 
         // Night Differential Pay (Full ND count within 10 PM - 6 AM)
         let ndHrs = calculateNightDiffHours(timeIn, timeOut);
         let ndPay = ndHrs * (effectiveHourlyRate * NIGHT_DIFF_MULTIPLIER);
 
         const exactPay = regPay + otPay + ndPay;
+
+        // Payable work hours (8 hrs regular + credited OT)
+        let creditedWorkHrs = regHrs + paidOtHrs;
 
         pairedData.push({
           inId: inLog.id,
@@ -232,7 +239,8 @@ function processDTRPairs() {
           timeInStr: timeIn.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
           timeOutStr: timeOut.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
           rawDate: timeIn,
-          workHrs: actualWorkHrs,
+          workHrs: creditedWorkHrs,
+          otHrs: paidOtHrs,
           computedPay: exactPay
         });
       } else {
@@ -248,6 +256,7 @@ function processDTRPairs() {
           timeOutStr: timeOut.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
           rawDate: timeOut,
           workHrs: 0,
+          otHrs: 0,
           computedPay: 0
         });
       }
@@ -268,6 +277,7 @@ function processDTRPairs() {
       timeOutStr: 'Pending OUT',
       rawDate: timeIn,
       workHrs: 0,
+      otHrs: 0,
       computedPay: 0
     });
   });
@@ -336,7 +346,7 @@ function renderTable() {
       <td>${pair.date}</td>
       <td>${pair.timeInStr}</td>
       <td>${pair.timeOutStr}</td>
-      <td>${pair.workHrs.toFixed(1)} hrs</td>
+      <td>${pair.workHrs.toFixed(1)} hrs (${pair.otHrs.toFixed(1)} OT)</td>
       <td>₱${pair.computedPay.toFixed(2)}</td>
       <td style="text-align: center;">${deleteBtnHTML}</td>
     `;
@@ -353,9 +363,9 @@ function exportDTR() {
   const pairs = processDTRPairs();
   if (pairs.length === 0) return alert('Walang logs para i-export.');
 
-  let csv = 'Employee,Shift,Day Type,Date,Time In,Time Out,Work Hours,Pay\n';
+  let csv = 'Employee,Shift,Day Type,Date,Time In,Time Out,Credited Work Hours,Paid OT Hours,Pay\n';
   pairs.forEach(p => {
-    csv += `"${p.employee}","${p.shift}","${p.dayType}","${p.date}","${p.timeInStr}","${p.timeOutStr}",${p.workHrs.toFixed(2)},${p.computedPay.toFixed(2)}\n`;
+    csv += `"${p.employee}","${p.shift}","${p.dayType}","${p.date}","${p.timeInStr}","${p.timeOutStr}",${p.workHrs.toFixed(1)},${p.otHrs.toFixed(1)},${p.computedPay.toFixed(2)}\n`;
   });
 
   const blob = new Blob([csv], { type: 'text/csv' });
