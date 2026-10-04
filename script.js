@@ -21,7 +21,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initLiveClock();
   setDefaultTimestamp();
   setDefaultFilterMonth();
-  setDefaultEmployeeName(); // Set "Yeth Awayan" as default name
+  setDefaultEmployeeName();
   renderTable();
 
   const dtrForm = document.getElementById('dtrForm');
@@ -43,7 +43,7 @@ function initLiveClock() {
 function setDefaultEmployeeName() {
   const empNameInput = document.getElementById('employeeName');
   if (empNameInput && !empNameInput.value) {
-    empNameInput.value = "Yeth Awayan"; // Default name (puwedeng palitan)
+    empNameInput.value = "Yeth Awayan";
   }
 }
 
@@ -96,14 +96,12 @@ function handleFormSubmit(e) {
 
   showToast(`${logType} Saved for ${empName}`);
 
-  // AUTOMATIC SWITCH TO "OUT" KAPAG KATATAPOS LANG MAG "IN"
   if (logType === 'IN' && logTypeSelect) {
     logTypeSelect.value = 'OUT';
   } else if (logType === 'OUT' && logTypeSelect) {
     logTypeSelect.value = 'IN';
   }
 
-  // Panatilihin ang pangalang "Yeth Awayan" at i-update ang oras sa kasalukuyan
   setDefaultEmployeeName();
   setDefaultTimestamp();
   
@@ -145,43 +143,20 @@ function deletePairLogs(inId, outId) {
   }
 }
 
-function calculateOTHours(otInMinutes) {
-  if (otInMinutes < 30) {
-    return 0;
-  } else if (otInMinutes < 60) {
-    return 0.5;
-  } else {
-    return Math.floor(otInMinutes / 60);
-  }
-}
-
-// Night Differential calculation (10:00 PM to 6:00 AM)
+// Full Night Differential calculation (10:00 PM to 6:00 AM window)
 function calculateNightDiffHours(timeIn, timeOut) {
   let ndMinutes = 0;
   let current = new Date(timeIn.getTime());
 
-  let hasBreak = (timeOut - timeIn) / (1000 * 60 * 60) > 5;
-  let breakDeducted = false;
-
   while (current < timeOut) {
     let hour = current.getHours();
-    
     if (hour >= 22 || hour < 6) {
-      if (hasBreak && !breakDeducted && hour === 22) {
-        current.setMinutes(current.getMinutes() + 60);
-        breakDeducted = true;
-        continue;
-      }
       ndMinutes += 1;
     }
     current.setMinutes(current.getMinutes() + 1);
   }
 
-  if (hasBreak && !breakDeducted && ndMinutes >= 60) {
-    ndMinutes -= 60;
-  }
-
-  return ndMinutes / 60;
+  return ndMinutes / 60; // Direct total ND hours without break deduction
 }
 
 function processDTRPairs() {
@@ -219,27 +194,33 @@ function processDTRPairs() {
         const timeIn = new Date(inLog.timestamp);
         const timeOut = new Date(log.timestamp);
 
-        let totalHrs = (timeOut - timeIn) / (1000 * 60 * 60);
+        // Total hours between IN and OUT
+        let totalElapsedHrs = (timeOut - timeIn) / (1000 * 60 * 60);
         
-        let actualWorkHrs = totalHrs > 5 ? totalHrs - 1 : totalHrs;
+        // Net work hours (minus 1 hr break if > 5 hrs duration)
+        let actualWorkHrs = totalElapsedHrs > 5 ? totalElapsedHrs - 1 : totalElapsedHrs;
         if (actualWorkHrs < 0) actualWorkHrs = 0;
 
+        // Regular Work Hours (Max 8 hrs)
         let regHrs = Math.min(actualWorkHrs, REGULAR_HOURS_PER_DAY);
         
-        let rawOtMinutes = Math.max(0, (actualWorkHrs - REGULAR_HOURS_PER_DAY) * 60);
-        let otHrs = calculateOTHours(rawOtMinutes);
+        // Overtime Hours (Anything excess of 8 hrs)
+        let otHrs = Math.max(0, actualWorkHrs - REGULAR_HOURS_PER_DAY);
 
         const dayMultiplier = DAY_MULTIPLIERS[inLog.dayType] || 1.00;
         const effectiveHourlyRate = BASIC_HOURLY_RATE * dayMultiplier;
 
+        // Basic Pay
         let regPay = regHrs >= REGULAR_HOURS_PER_DAY ? (BASIC_DAILY_RATE * dayMultiplier) : (regHrs * effectiveHourlyRate);
+        
+        // Exact Overtime Pay (125% rate)
         let otPay = otHrs * (effectiveHourlyRate * OVERTIME_MULTIPLIER);
 
+        // Night Differential Pay (Full ND count within 10 PM - 6 AM)
         let ndHrs = calculateNightDiffHours(timeIn, timeOut);
         let ndPay = ndHrs * (effectiveHourlyRate * NIGHT_DIFF_MULTIPLIER);
 
         const exactPay = regPay + otPay + ndPay;
-        const creditedWorkHrs = regHrs + otHrs;
 
         pairedData.push({
           inId: inLog.id,
@@ -251,7 +232,7 @@ function processDTRPairs() {
           timeInStr: timeIn.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
           timeOutStr: timeOut.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
           rawDate: timeIn,
-          workHrs: creditedWorkHrs,
+          workHrs: actualWorkHrs,
           computedPay: exactPay
         });
       } else {
