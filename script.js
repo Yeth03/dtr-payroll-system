@@ -128,6 +128,26 @@ function showToast(msg) {
   }, 2500);
 }
 
+// FUNCTION PARA SA PAG-DELETE NG ISANG LOG (IN o OUT ID)
+function deleteLog(logId) {
+  if (confirm("Sigurado ka bang gusto mong burahin ang log na ito?")) {
+    dtrLogs = dtrLogs.filter(log => log.id !== logId);
+    localStorage.setItem('rgserve_dtr_logs', JSON.stringify(dtrLogs));
+    showToast("Nababura na ang log!");
+    renderTable();
+  }
+}
+
+// FUNCTION PARA BURAHIN ANG BUONG PAIR (IN & OUT)
+function deletePair(inId, outId) {
+  if (confirm("Sigurado ka bang gusto mong burahin ang buong In/Out record na ito?")) {
+    dtrLogs = dtrLogs.filter(log => log.id !== inId && log.id !== outId);
+    localStorage.setItem('rgserve_dtr_logs', JSON.stringify(dtrLogs));
+    showToast("Nababura na ang buong record!");
+    renderTable();
+  }
+}
+
 // PAIRING IN & OUT LOGS & COMPUTING PAY
 function processDTRPairs() {
   const pairedData = [];
@@ -139,12 +159,13 @@ function processDTRPairs() {
     const key = `${log.employee}_${log.shift}`;
 
     if (log.logType === 'IN') {
-      // Kung may umiiral nang pending IN, i-push muna natin bilang partial/unpaired
       if (pendingIns[key]) {
         const prevIn = pendingIns[key];
         const prevTimeIn = new Date(prevIn.timestamp);
         pairedData.push({
           id: prevIn.id,
+          inId: prevIn.id,
+          outId: null,
           employee: prevIn.employee,
           shift: prevIn.shift,
           dayType: prevIn.dayType,
@@ -165,31 +186,26 @@ function processDTRPairs() {
         const timeIn = new Date(inLog.timestamp);
         const timeOut = new Date(log.timestamp);
 
-        // Compute total hours
         let diffMs = timeOut - timeIn;
         let totalHrs = diffMs / (1000 * 60 * 60);
 
-        // Subtract 1-hour unpaid break for shifts 5 hrs or longer
         let actualWorkHrs = totalHrs > 5 ? totalHrs - 1 : totalHrs;
         if (actualWorkHrs < 0) actualWorkHrs = 0;
 
-        // Regular vs Overtime hours
         let regHrs = Math.min(actualWorkHrs, REGULAR_HOURS_PER_DAY);
         let otHrs = Math.max(0, actualWorkHrs - REGULAR_HOURS_PER_DAY);
 
-        // Day Type Rate Multiplier
         const dayMultiplier = DAY_MULTIPLIERS[inLog.dayType] || 1.00;
-
-        // Base Hourly Rate adjusted by Day Type
         const effectiveHourlyRate = BASIC_HOURLY_RATE * dayMultiplier;
         
-        // Pay Computations
         const regPay = regHrs * effectiveHourlyRate;
         const otPay = otHrs * (effectiveHourlyRate * OVERTIME_MULTIPLIER);
         const totalPay = regPay + otPay;
 
         pairedData.push({
           id: inLog.id,
+          inId: inLog.id,
+          outId: log.id,
           employee: inLog.employee,
           shift: inLog.shift,
           dayType: inLog.dayType,
@@ -201,10 +217,11 @@ function processDTRPairs() {
           computedPay: totalPay
         });
       } else {
-        // TIME OUT nang walang ka-pair na TIME IN
         const timeOut = new Date(log.timestamp);
         pairedData.push({
           id: log.id,
+          inId: null,
+          outId: log.id,
           employee: log.employee,
           shift: log.shift,
           dayType: log.dayType,
@@ -219,12 +236,13 @@ function processDTRPairs() {
     }
   });
 
-  // Isama ang natitirang pending IN logs (pumasok pa lang pero wala pang OUT)
   Object.keys(pendingIns).forEach(key => {
     const inLog = pendingIns[key];
     const timeIn = new Date(inLog.timestamp);
     pairedData.push({
       id: inLog.id,
+      inId: inLog.id,
+      outId: null,
       employee: inLog.employee,
       shift: inLog.shift,
       dayType: inLog.dayType,
@@ -261,7 +279,6 @@ function renderTable() {
 
   const todayStr = new Date().toLocaleDateString();
 
-  // Count Today's Logs for Summary Cards
   dtrLogs.forEach(l => {
     if (new Date(l.timestamp).toLocaleDateString() === todayStr) {
       if (l.logType === 'IN') timeInTodayCount++;
@@ -278,30 +295,38 @@ function renderTable() {
   if (timeOutCountEl) timeOutCountEl.textContent = timeOutTodayCount;
 
   if (pairs.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; padding: 10px; color: #b0bac5;">Walang data na nakita.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; padding: 10px; color: #b0bac5;">Walang data na nakita.</td></tr>`;
+    return;
   }
 
   pairs.forEach(pair => {
     const pairYearMonth = `${pair.rawDate.getFullYear()}-${String(pair.rawDate.getMonth() + 1).padStart(2, '0')}`;
     const dayOfMonth = pair.rawDate.getDate();
 
-    // Month Filter
     if (selectedMonth && pairYearMonth !== selectedMonth) return;
 
-    // Cut-off Filter
     if (selectedCutoff === '1-15' && dayOfMonth > 15) return;
     if (selectedCutoff === '16-31' && dayOfMonth < 16) return;
 
     totalHoursCutoff += pair.workHrs;
     totalPayCutoff += pair.computedPay;
 
-    // Day Type Badge Generator
     let dayBadge = '<span class="badge-day day-reg" style="color: #00f2fe;">REG</span>';
     if (pair.dayType === 'REST_DAY') dayBadge = '<span class="badge-day day-rest" style="color: #ffbd2e;">REST</span>';
     if (pair.dayType === 'SPECIAL_HOLIDAY') dayBadge = '<span class="badge-day day-spl" style="color: #ff5f56;">SPL HOL</span>';
     if (pair.dayType === 'REGULAR_HOLIDAY') dayBadge = '<span class="badge-day day-reghol" style="color: #00ff87;">REG HOL</span>';
     if (pair.dayType === 'REST_SPECIAL') dayBadge = '<span class="badge-day day-spl" style="color: #ff5f56;">REST+SPL</span>';
     if (pair.dayType === 'REST_REGULAR') dayBadge = '<span class="badge-day day-reghol" style="color: #00ff87;">REST+REG</span>';
+
+    // PAGBUBUO NG DELETE BUTTON ACTION
+    let deleteAction = '';
+    if (pair.inId && pair.outId) {
+      deleteAction = `onclick="deletePair(${pair.inId}, ${pair.outId})"`;
+    } else if (pair.inId) {
+      deleteAction = `onclick="deleteLog(${pair.inId})"`;
+    } else if (pair.outId) {
+      deleteAction = `onclick="deleteLog(${pair.outId})"`;
+    }
 
     const tr = document.createElement('tr');
     tr.innerHTML = `
@@ -313,11 +338,15 @@ function renderTable() {
       <td>${pair.timeOutStr}</td>
       <td>${pair.workHrs.toFixed(1)} hrs</td>
       <td>₱${pair.computedPay.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+      <td>
+        <button style="background: rgba(255,95,86,0.2); color: #ff5f56; border: 1px solid #ff5f56; padding: 2px 6px; border-radius: 3px; font-size: 8px; cursor: pointer;" ${deleteAction}>
+          ✖
+        </button>
+      </td>
     `;
     tbody.appendChild(tr);
   });
 
-  // Update Summary Overview
   const payrollOverviewEl = document.getElementById('payrollOverview');
   if (payrollOverviewEl) {
     payrollOverviewEl.textContent = 
