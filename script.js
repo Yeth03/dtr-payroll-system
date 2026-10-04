@@ -2,7 +2,7 @@
 const BASIC_DAILY_RATE = 755.00;
 const REGULAR_HOURS_PER_DAY = 8;
 
-// Gamitin ang eksaktong rate (94.375) nang walang truncation o rounding off
+// Exact Hourly Rate: 94.375
 const BASIC_HOURLY_RATE = BASIC_DAILY_RATE / REGULAR_HOURS_PER_DAY; 
 const OVERTIME_MULTIPLIER = 1.25;
 const NIGHT_DIFF_MULTIPLIER = 0.10; 
@@ -57,20 +57,6 @@ function setDefaultFilterMonth() {
   const year = now.getFullYear();
   const month = String(now.getMonth() + 1).padStart(2, '0');
   filterMonth.value = `${year}-${month}`;
-}
-
-function setPresetTime(type) {
-  const timestampInput = document.getElementById('logTimestamp');
-  if (!timestampInput) return;
-
-  const now = new Date();
-  if (type === 'am') {
-    now.setHours(6, 0, 0, 0);
-  } else if (type === 'pm') {
-    now.setHours(18, 0, 0, 0);
-  }
-  now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
-  timestampInput.value = now.toISOString().slice(0, 16);
 }
 
 function handleFormSubmit(e) {
@@ -140,7 +126,7 @@ function deletePairLogs(inId, outId) {
   }
 }
 
-// 30-MINUTES O 1-HOUR OT BLOCK LOGIC
+// 30-MINUTES / 1-HOUR OT BLOCK LOGIC
 function calculateOTHours(otInMinutes) {
   if (otInMinutes < 30) {
     return 0;
@@ -203,6 +189,7 @@ function processDTRPairs() {
 
         let totalHrs = (timeOut - timeIn) / (1000 * 60 * 60);
         
+        // Deduct 1 hr break if work duration exceeds 5 hrs
         let actualWorkHrs = totalHrs > 5 ? totalHrs - 1 : totalHrs;
         if (actualWorkHrs < 0) actualWorkHrs = 0;
 
@@ -211,16 +198,27 @@ function processDTRPairs() {
         let rawOtMinutes = Math.max(0, (actualWorkHrs - REGULAR_HOURS_PER_DAY) * 60);
         let otHrs = calculateOTHours(rawOtMinutes);
 
-        let rawNdHrs = calculateNightDiffHours(timeIn, timeOut);
-        let ndHrs = Math.min(rawNdHrs, actualWorkHrs);
-
         const dayMultiplier = DAY_MULTIPLIERS[inLog.dayType] || 1.00;
         const effectiveHourlyRate = BASIC_HOURLY_RATE * dayMultiplier;
 
-        // Eksaktong kwenta kasama ang mga butal
-        const regPay = regHrs * effectiveHourlyRate;
-        const otPay = otHrs * (effectiveHourlyRate * OVERTIME_MULTIPLIER);
-        const ndPay = ndHrs * (effectiveHourlyRate * NIGHT_DIFF_MULTIPLIER);
+        // REGULAR PAY COMPUTATION (Fixed 755.00 kung kumpleto ang 8 hrs)
+        let regPay = 0;
+        if (regHrs >= REGULAR_HOURS_PER_DAY) {
+          regPay = BASIC_DAILY_RATE * dayMultiplier;
+        } else {
+          regPay = regHrs * effectiveHourlyRate;
+        }
+
+        // OT PAY COMPUTATION
+        let otPay = otHrs * (effectiveHourlyRate * OVERTIME_MULTIPLIER);
+
+        // NIGHT DIFFERENTIAL COMPUTATION
+        let ndPay = 0;
+        if (inLog.shift === 'PM' || inLog.shift === 'NIGHT') {
+          let rawNdHrs = calculateNightDiffHours(timeIn, timeOut);
+          let ndHrs = Math.min(rawNdHrs, actualWorkHrs);
+          ndPay = ndHrs * (effectiveHourlyRate * NIGHT_DIFF_MULTIPLIER);
+        }
 
         const exactPay = regPay + otPay + ndPay;
         const creditedWorkHrs = regHrs + otHrs;
