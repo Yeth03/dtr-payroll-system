@@ -263,6 +263,7 @@ function processDTRPairs() {
         let timeIn = new Date(inLog.timestamp);
         const timeOut = new Date(log.timestamp);
 
+        // Grace period computation for TIME IN
         let scheduledIn = new Date(timeIn.getTime());
         if (inLog.shift === 'AM') {
           scheduledIn.setHours(8, 0, 0, 0);
@@ -275,22 +276,38 @@ function processDTRPairs() {
           timeIn = scheduledIn;
         }
 
+        // Total Elapsed Time
         let totalElapsedHrs = (timeOut - timeIn) / (1000 * 60 * 60);
         if (totalElapsedHrs < 0) totalElapsedHrs = 0;
 
+        // Bawas 1 hour meal break kapag lampas 5 hours
         let actualWorkHrs = totalElapsedHrs > 5 ? totalElapsedHrs - 1 : totalElapsedHrs;
 
+        // Regular Work Hours (Capped at 8 hours)
         let regHrs = Math.min(actualWorkHrs, REGULAR_HOURS_PER_DAY);
-        let rawOtHrs = Math.max(0, actualWorkHrs - REGULAR_HOURS_PER_DAY);
+        
+        // Excess hours above 8 hours
+        let excessHrs = Math.max(0, actualWorkHrs - REGULAR_HOURS_PER_DAY);
 
-        let paidOtHrs = rawOtHrs >= 0.5 ? Math.floor(rawOtHrs * 2) / 2 : 0;
+        // STRICT OT RULE: Dadagdag lang kapag umabot ng at least 30 minutes (0.5 hr)
+        // Bawat 30 minutes lang nagkakaroon ng bayad (Floor to nearest 0.5)
+        let paidOtHrs = 0;
+        if (excessHrs >= 0.5) {
+          paidOtHrs = Math.floor(excessHrs * 2) / 2;
+        }
 
         const dayMultiplier = DAY_MULTIPLIERS[inLog.dayType] || 1.00;
         const effectiveHourlyRate = BASIC_HOURLY_RATE * dayMultiplier;
 
-        let regPay = regHrs >= REGULAR_HOURS_PER_DAY ? (BASIC_DAILY_RATE * dayMultiplier) : (regHrs * effectiveHourlyRate);
+        // Regular Pay Calculation (Eksaktong Daily Rate pag kumpleto ang 8 hrs)
+        let regPay = regHrs >= REGULAR_HOURS_PER_DAY 
+          ? (BASIC_DAILY_RATE * dayMultiplier) 
+          : (regHrs * effectiveHourlyRate);
+
+        // Overtime Pay Calculation
         let otPay = paidOtHrs * (effectiveHourlyRate * OVERTIME_MULTIPLIER);
 
+        // Night Differential Computation
         let ndHrs = 0;
         if (paidOtHrs > 0 || regHrs > 0) {
           let creditedEndMs = timeIn.getTime() + ((regHrs + (regHrs >= 8 ? 1 : 0) + paidOtHrs) * 60 * 60 * 1000);
