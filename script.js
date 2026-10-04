@@ -1,313 +1,252 @@
-// 1. Live Clock Display sa Header
-function updateClock() {
-  const clockElem = document.getElementById('liveClock');
-  if (clockElem) {
-    const now = new Date();
-    clockElem.textContent = now.toLocaleTimeString();
-  }
-}
-setInterval(updateClock, 1000);
+// CONFIGURATION
+const BASIC_DAILY_RATE = 755.00;
+const REGULAR_HOURS_PER_DAY = 8;
+const BASIC_HOURLY_RATE = BASIC_DAILY_RATE / REGULAR_HOURS_PER_DAY; // ₱94.375/hr
+const OVERTIME_MULTIPLIER = 1.25; // 25% OT Premium
 
-// 2. Initial Setup upon Page Load
+// PREMIUM RATES ACCORDING TO LABOR CODE
+const DAY_MULTIPLIERS = {
+  "REGULAR": 1.00,        // 100%
+  "REST_DAY": 1.30,       // 130%
+  "SPECIAL_HOLIDAY": 1.30,// 130%
+  "REGULAR_HOLIDAY": 2.00,// 200%
+  "REST_SPECIAL": 1.50,   // 150%
+  "REST_REGULAR": 2.60    // 260%
+};
+
+let dtrLogs = JSON.parse(localStorage.getItem('rgserve_dtr_logs')) || [];
+
 document.addEventListener('DOMContentLoaded', () => {
-  updateClock();
-  
-  // Set Current Month sa Filter
-  const today = new Date();
-  const currentMonthStr = today.toISOString().slice(0, 7); // YYYY-MM
-  const monthFilter = document.getElementById('filterMonth');
-  if (monthFilter) {
-    monthFilter.value = currentMonthStr;
-  }
-  
-  setPresetTime('now');
+  initLiveClock();
+  setDefaultTimestamp();
+  setDefaultFilterMonth();
   renderTable();
 
-  // Attach Form Submit Listener with Smooth Save Animation
-  const dtrForm = document.getElementById('dtrForm');
-  if (dtrForm) {
-    dtrForm.addEventListener('submit', function(e) {
-      e.preventDefault();
-      
-      const btn = document.getElementById('btnSubmit');
-      const btnText = document.getElementById('btnText');
-      const name = document.getElementById('employeeName').value.trim();
-      const shift = document.getElementById('workShift').value;
-      const type = document.getElementById('logType').value;
-      const timestamp = document.getElementById('logTimestamp').value;
-
-      if (!name || !timestamp) {
-        showToast('Please fill out all fields!', 'error');
-        return;
-      }
-
-      // Smooth Button Loading Effect
-      btn.style.pointerEvents = 'none';
-      btn.style.opacity = '0.7';
-      if (btnText) btnText.textContent = 'Saving...';
-
-      setTimeout(() => {
-        const logs = getLogs();
-        logs.push({
-          id: Date.now(),
-          name: name,
-          shift: shift,
-          type: type,
-          timestamp: timestamp
-        });
-
-        saveLogs(logs);
-
-        // Reset Button State Smoothly
-        btn.style.pointerEvents = 'auto';
-        btn.style.opacity = '1';
-        if (btnText) btnText.textContent = 'Save Log';
-
-        // Clean Toast Notification Popup
-        showToast(`Log saved successfully for ${name}!`, 'success');
-        if (navigator.vibrate) navigator.vibrate(30);
-
-        renderTable(true); // Re-render table and highlight
-      }, 200);
-    });
-  }
+  document.getElementById('dtrForm').addEventListener('submit', handleFormSubmit);
 });
 
-// 3. Preset Time Buttons
-function setPresetTime(type) {
-  const now = new Date();
-  const input = document.getElementById('logTimestamp');
-  if (!input) return;
+function initLiveClock() {
+  setInterval(() => {
+    const now = new Date();
+    document.getElementById('liveClock').textContent = now.toLocaleTimeString('en-US', { hour12: true });
+  }, 1000);
+}
 
-  if (type === 'now') {
-    now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
-    input.value = now.toISOString().slice(0, 16);
-  } else if (type === 'am') {
+function setDefaultTimestamp() {
+  const now = new Date();
+  now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+  document.getElementById('logTimestamp').value = now.toISOString().slice(0, 16);
+}
+
+function setDefaultFilterMonth() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  document.getElementById('filterMonth').value = `${year}-${month}`;
+}
+
+function setPresetTime(type) {
+  const timestampInput = document.getElementById('logTimestamp');
+  const now = new Date();
+  
+  if (type === 'am') {
     now.setHours(6, 0, 0, 0);
-    now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
-    input.value = now.toISOString().slice(0, 16);
   } else if (type === 'pm') {
     now.setHours(18, 0, 0, 0);
-    now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
-    input.value = now.toISOString().slice(0, 16);
   }
+  
+  now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+  timestampInput.value = now.toISOString().slice(0, 16);
 }
 
-// 4. LocalStorage Helpers
-function getLogs() {
-  return JSON.parse(localStorage.getItem('rgserve_dtr_logs') || '[]');
+function handleFormSubmit(e) {
+  e.preventDefault();
+  
+  const empName = document.getElementById('employeeName').value.trim();
+  const shift = document.getElementById('workShift').value;
+  const dayType = document.getElementById('dayType').value;
+  const logType = document.getElementById('logType').value;
+  const timestamp = document.getElementById('logTimestamp').value;
+
+  if (!empName || !timestamp) return;
+
+  const logEntry = {
+    id: Date.now(),
+    employee: empName,
+    shift: shift,
+    dayType: dayType,
+    logType: logType,
+    timestamp: timestamp
+  };
+
+  dtrLogs.push(logEntry);
+  localStorage.setItem('rgserve_dtr_logs', JSON.stringify(dtrLogs));
+
+  showToast(`Log saved for ${empName} (${logType})`);
+  renderTable();
 }
 
-function saveLogs(logs) {
-  localStorage.setItem('rgserve_dtr_logs', JSON.stringify(logs));
-}
-
-// 5. Clean Toast Popup Notification
-function showToast(msg, type = 'success') {
+function showToast(msg) {
   const container = document.getElementById('toastContainer');
-  if (!container) return;
-
   const toast = document.createElement('div');
   toast.className = 'toast';
-  if (type === 'error') {
-    toast.style.borderLeftColor = '#ff4d4f';
-  }
-
-  toast.innerHTML = `
-    <span class="toast-icon">${type === 'success' ? '✓' : '⚠️'}</span>
-    <span>${msg}</span>
-  `;
-
+  toast.innerHTML = `<span class="toast-icon">✓</span> <span>${msg}</span>`;
   container.appendChild(toast);
 
   setTimeout(() => toast.classList.add('show'), 10);
-
   setTimeout(() => {
     toast.classList.remove('show');
-    setTimeout(() => toast.remove(), 200);
-  }, 2000);
+    setTimeout(() => toast.remove(), 300);
+  }, 3000);
 }
 
-// 6. LOG PROCESSING (WITH 1-HR UNPAID BREAK & 25% OVERTIME COMPUTATION)
-function processLogs() {
-  const rawLogs = getLogs();
-  const paired = [];
-  
-  // Sort logs chronologically
-  rawLogs.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+// PAIRING IN & OUT LOGS & COMPUTING PAY
+function processDTRPairs() {
+  const pairedData = [];
+  const sortedLogs = [...dtrLogs].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
 
-  // Group logs per employee
-  const employeeLogs = {};
-  rawLogs.forEach(log => {
-    const key = log.name.toLowerCase().trim();
-    if (!employeeLogs[key]) employeeLogs[key] = [];
-    employeeLogs[key].push(log);
-  });
+  const pendingIns = {};
 
-  // Pair IN and OUT per employee
-  Object.keys(employeeLogs).forEach(emp => {
-    const logs = employeeLogs[emp];
-    let currentIn = null;
+  sortedLogs.forEach(log => {
+    const key = `${log.employee}_${log.shift}`;
 
-    logs.forEach(log => {
-      if (log.type === 'IN') {
-        currentIn = log;
-      } else if (log.type === 'OUT' && currentIn) {
-        const timeIn = new Date(currentIn.timestamp);
-        const timeOut = new Date(log.timestamp);
-        
-        const diffMs = timeOut - timeIn;
-        let totalHours = diffMs > 0 ? (diffMs / (1000 * 60 * 60)) : 0;
-        
-        // UNPAID BREAKTIME LOGIC:
-        // Babawasan ng 1 oras na break kapag 5 oras o pataas ang render
-        let paidHours = totalHours;
-        if (totalHours >= 5) {
-          paidHours = Math.max(0, totalHours - 1);
-        }
+    if (log.logType === 'IN') {
+      pendingIns[key] = log;
+    } else if (log.logType === 'OUT' && pendingIns[key]) {
+      const inLog = pendingIns[key];
+      delete pendingIns[key];
 
-        // RATES CONFIGURATION
-        const dailyRate = 755;
-        const regularHourlyRate = dailyRate / 8;        // ₱94.375 / hr
-        const otHourlyRate = regularHourlyRate * 1.25; // ₱117.96875 / hr (25% OT rate)
+      const timeIn = new Date(inLog.timestamp);
+      const timeOut = new Date(log.timestamp);
 
-        let regHours = 0;
-        let otHours = 0;
+      // Compute total hours
+      let diffMs = timeOut - timeIn;
+      let totalHrs = diffMs / (1000 * 60 * 60);
 
-        if (paidHours > 8) {
-          regHours = 8;
-          otHours = paidHours - 8;
-        } else {
-          regHours = paidHours;
-          otHours = 0;
-        }
+      // Subtract 1-hour unpaid break for shifts 5 hrs or longer
+      let actualWorkHrs = totalHrs > 5 ? totalHrs - 1 : totalHrs;
+      if (actualWorkHrs < 0) actualWorkHrs = 0;
 
-        // SALARY COMPUTATION
-        const regPay = regHours * regularHourlyRate;
-        const otPay = otHours * otHourlyRate;
-        const totalComputedPay = (regPay + otPay).toFixed(2);
+      // Regular vs Overtime hours
+      let regHrs = Math.min(actualWorkHrs, REGULAR_HOURS_PER_DAY);
+      let otHrs = Math.max(0, actualWorkHrs - REGULAR_HOURS_PER_DAY);
 
-        const dateStr = currentIn.timestamp.split('T')[0];
+      // Day Type Rate Multiplier
+      const dayMultiplier = DAY_MULTIPLIERS[inLog.dayType] || 1.00;
 
-        paired.push({
-          id: log.id,
-          name: currentIn.name,
-          shift: currentIn.shift,
-          date: dateStr,
-          timeIn: timeIn.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          timeOut: timeOut.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          hoursWorked: paidHours.toFixed(2),
-          computedPay: totalComputedPay
-        });
+      // Base Hourly Rate adjusted by Day Type (e.g., Double pay = 2.0x)
+      const effectiveHourlyRate = BASIC_HOURLY_RATE * dayMultiplier;
+      
+      // Pay Computations
+      const regPay = regHrs * effectiveHourlyRate;
+      const otPay = otHrs * (effectiveHourlyRate * OVERTIME_MULTIPLIER);
+      const totalPay = regPay + otPay;
 
-        currentIn = null; // Reset
-      }
-    });
-  });
-
-  return paired;
-}
-
-// 7. Table Rendering
-function renderTable(highlightLatest = false) {
-  const selectedMonthElem = document.getElementById('filterMonth');
-  const cutoffElem = document.getElementById('filterCutoff');
-  const tbody = document.getElementById('dtrTableBody');
-  
-  if (!tbody) return;
-
-  const selectedMonth = selectedMonthElem ? selectedMonthElem.value : ''; 
-  const cutoff = cutoffElem ? cutoffElem.value : 'ALL'; 
-  
-  tbody.innerHTML = '';
-
-  const allPaired = processLogs();
-  let totalHoursSum = 0;
-  let totalPaySum = 0;
-  let totalInToday = 0;
-  let totalOutToday = 0;
-
-  const todayStr = new Date().toISOString().split('T')[0];
-  const rawLogs = getLogs();
-
-  rawLogs.forEach(l => {
-    if (l.timestamp && l.timestamp.startsWith(todayStr)) {
-      if (l.type === 'IN') totalInToday++;
-      if (l.type === 'OUT') totalOutToday++;
+      pairedData.push({
+        id: inLog.id,
+        employee: inLog.employee,
+        shift: inLog.shift,
+        dayType: inLog.dayType,
+        date: timeIn.toLocaleDateString(),
+        timeInStr: timeIn.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        timeOutStr: timeOut.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        rawDate: timeIn,
+        workHrs: actualWorkHrs,
+        computedPay: totalPay
+      });
     }
   });
 
-  const totalLogsElem = document.getElementById('totalLogs');
-  const timeInElem = document.getElementById('timeInCount');
-  const timeOutElem = document.getElementById('timeOutCount');
-
-  if (totalLogsElem) totalLogsElem.textContent = rawLogs.filter(l => l.timestamp && l.timestamp.startsWith(todayStr)).length;
-  if (timeInElem) timeInElem.textContent = totalInToday;
-  if (timeOutElem) timeOutElem.textContent = totalOutToday;
-
-  const filtered = allPaired.filter(item => {
-    if (!item.date) return false;
-    const [year, month, day] = item.date.split('-').map(Number);
-    const itemMonthStr = `${year}-${String(month).padStart(2, '0')}`;
-
-    if (selectedMonth && itemMonthStr !== selectedMonth) return false;
-    if (cutoff === '1-15') return day >= 1 && day <= 15;
-    if (cutoff === '16-31') return day >= 16 && day <= 31;
-
-    return true;
-  });
-
-  if (filtered.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: #b0bac5; padding: 15px;">No matched IN/OUT logs found for the selected cut-off.</td></tr>`;
-  } else {
-    filtered.forEach((log, index) => {
-      totalHoursSum += parseFloat(log.hoursWorked);
-      totalPaySum += parseFloat(log.computedPay);
-
-      const row = document.createElement('tr');
-      
-      if (highlightLatest && index === filtered.length - 1) {
-        row.classList.add('row-highlight');
-      }
-
-      row.innerHTML = `
-        <td><strong>${log.name}</strong></td>
-        <td><span class="badge-shift ${log.shift === 'AM' ? 'badge-am' : 'badge-pm'}">${log.shift}</span></td>
-        <td>${log.date}</td>
-        <td>${log.timeIn}</td>
-        <td>${log.timeOut}</td>
-        <td>${log.hoursWorked} hrs</td>
-        <td style="color: #00ff87; font-weight: bold;">₱${parseFloat(log.computedPay).toLocaleString('en-US', {minimumFractionDigits: 2})}</td>
-      `;
-      tbody.appendChild(row);
-    });
-  }
-
-  const payrollOverview = document.getElementById('payrollOverview');
-  if (payrollOverview) {
-    payrollOverview.textContent = 
-      `Est. Work: ${totalHoursSum.toFixed(2)} hrs | Pay: ₱${totalPaySum.toLocaleString('en-US', {minimumFractionDigits: 2})}`;
-  }
+  return pairedData;
 }
 
-// 8. Export Filtered Logs to CSV
+function renderTable() {
+  const tbody = document.getElementById('dtrTableBody');
+  tbody.innerHTML = '';
+
+  const selectedMonth = document.getElementById('filterMonth').value; // YYYY-MM
+  const selectedCutoff = document.getElementById('filterCutoff').value; // ALL, 1-15, 16-31
+
+  const pairs = processDTRPairs();
+  
+  let totalHoursCutoff = 0;
+  let totalPayCutoff = 0;
+  let timeInTodayCount = 0;
+  let timeOutTodayCount = 0;
+
+  const todayStr = new Date().toLocaleDateString();
+
+  // Count Today's Logs for Summary Cards
+  dtrLogs.forEach(l => {
+    if (new Date(l.timestamp).toLocaleDateString() === todayStr) {
+      if (l.logType === 'IN') timeInTodayCount++;
+      if (l.logType === 'OUT') timeOutTodayCount++;
+    }
+  });
+
+  document.getElementById('totalLogs').textContent = dtrLogs.length;
+  document.getElementById('timeInCount').textContent = timeInTodayCount;
+  document.getElementById('timeOutCount').textContent = timeOutTodayCount;
+
+  pairs.forEach(pair => {
+    const pairYearMonth = `${pair.rawDate.getFullYear()}-${String(pair.rawDate.getMonth() + 1).padStart(2, '0')}`;
+    const dayOfMonth = pair.rawDate.getDate();
+
+    // Month Filter
+    if (selectedMonth && pairYearMonth !== selectedMonth) return;
+
+    // Cut-off Filter
+    if (selectedCutoff === '1-15' && dayOfMonth > 15) return;
+    if (selectedCutoff === '16-31' && dayOfMonth < 16) return;
+
+    totalHoursCutoff += pair.workHrs;
+    totalPayCutoff += pair.computedPay;
+
+    // Day Type Badge Generator
+    let dayBadge = '<span class="badge-day day-reg">REG</span>';
+    if (pair.dayType === 'REST_DAY') dayBadge = '<span class="badge-day day-rest">REST</span>';
+    if (pair.dayType === 'SPECIAL_HOLIDAY') dayBadge = '<span class="badge-day day-spl">SPL HOL</span>';
+    if (pair.dayType === 'REGULAR_HOLIDAY') dayBadge = '<span class="badge-day day-reghol">REG HOL</span>';
+    if (pair.dayType === 'REST_SPECIAL') dayBadge = '<span class="badge-day day-spl">REST+SPL</span>';
+    if (pair.dayType === 'REST_REGULAR') dayBadge = '<span class="badge-day day-reghol">REST+REG</span>';
+
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${pair.employee}</td>
+      <td><span class="badge-shift ${pair.shift === 'AM' ? 'badge-am' : 'badge-pm'}">${pair.shift}</span></td>
+      <td>${dayBadge}</td>
+      <td>${pair.date}</td>
+      <td>${pair.timeInStr}</td>
+      <td>${pair.timeOutStr}</td>
+      <td>${pair.workHrs.toFixed(1)} hrs</td>
+      <td>₱${pair.computedPay.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  // Update Summary Cards
+  document.getElementById('payrollOverview').textContent = 
+    `Est. Work: ${totalHoursCutoff.toFixed(1)} hrs | Pay: ₱${totalPayCutoff.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
 function exportDTR() {
-  const allPaired = processLogs();
-  if (allPaired.length === 0) {
-    showToast('No data available to export!', 'error');
+  const pairs = processDTRPairs();
+  if (pairs.length === 0) {
+    alert('No completed logs to export.');
     return;
   }
 
-  let csvContent = "data:text/csv;charset=utf-8,Employee,Shift,Date,Time In,Time Out,Hours Worked,Computed Pay\n";
-  allPaired.forEach(r => {
-    csvContent += `"${r.name}","${r.shift}","${r.date}","${r.timeIn}","${r.timeOut}","${r.hoursWorked}","${r.computedPay}"\n`;
+  let csv = 'Employee,Shift,Day Type,Date,Time In,Time Out,Work Hours,Computed Pay\n';
+  pairs.forEach(p => {
+    csv += `"${p.employee}","${p.shift}","${p.dayType}","${p.date}","${p.timeInStr}","${p.timeOutStr}",${p.workHrs.toFixed(2)},${p.computedPay.toFixed(2)}\n`;
   });
 
-  const encodedUri = encodeURI(csvContent);
-  const link = document.createElement("a");
-  link.setAttribute("href", encodedUri);
-  link.setAttribute("download", `RGSERVE_DTR_Export.csv`);
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.setAttribute('href', url);
+  a.setAttribute('download', `DTR_Payroll_Export_${new Date().toISOString().slice(0, 10)}.csv`);
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
 }
