@@ -248,7 +248,7 @@ function processDTRPairs() {
         let timeIn = new Date(inLog.timestamp);
         const timeOut = new Date(log.timestamp);
 
-        // Grace period computation for TIME IN
+        // Grace period computation for TIME IN (15 mins tolerance)
         let scheduledIn = new Date(timeIn.getTime());
         if (inLog.shift === 'AM') {
           scheduledIn.setHours(8, 0, 0, 0);
@@ -268,27 +268,32 @@ function processDTRPairs() {
         // Bawas 1 hour meal break kapag lampas 5 hours
         let actualWorkHrs = totalElapsedHrs > 5 ? totalElapsedHrs - 1 : totalElapsedHrs;
 
-        // Regular Work Hours (Capped at 8 hours)
+        // STRICT CAPPING: Regular work hours is capped at exactly 8 hours
         let regHrs = Math.min(actualWorkHrs, REGULAR_HOURS_PER_DAY);
         
         // Excess hours above 8 hours
         let excessHrs = Math.max(0, actualWorkHrs - REGULAR_HOURS_PER_DAY);
 
-        // STRICT OT RULE: Dadagdag lang kapag umabot ng at least 30 minutes (0.5 hr)
+        // =========================================================
+        // 15-MINUTE OVERTIME THRESHOLD RULE (0.25 hrs)
+        // =========================================================
         let paidOtHrs = 0;
-        if (excessHrs >= 0.5) {
-          paidOtHrs = Math.floor(excessHrs * 2) / 2;
+        if (excessHrs >= 0.25) { // At least 15 minutes
+          paidOtHrs = Math.floor(excessHrs * 4) / 4; // Floors to nearest 0.25 hr (15 mins)
         }
 
         const dayMultiplier = DAY_MULTIPLIERS[inLog.dayType] || 1.00;
         const effectiveHourlyRate = BASIC_HOURLY_RATE * dayMultiplier;
 
-        // Regular Pay Calculation
-        let regPay = regHrs >= REGULAR_HOURS_PER_DAY 
-          ? (BASIC_DAILY_RATE * dayMultiplier) 
-          : (regHrs * effectiveHourlyRate);
+        // REGULAR PAY: Fixed sa ₱755.00 * Day Multiplier kapag nakakumpleto ng 8 hrs
+        let regPay = 0;
+        if (actualWorkHrs >= REGULAR_HOURS_PER_DAY) {
+          regPay = BASIC_DAILY_RATE * dayMultiplier;
+        } else {
+          regPay = regHrs * effectiveHourlyRate; // Pro-rated kapag kulang sa 8 hrs (undertime)
+        }
 
-        // Overtime Pay Calculation
+        // OVERTIME PAY: Dagdag bayad kapag paidOtHrs > 0
         let otPay = paidOtHrs * (effectiveHourlyRate * OVERTIME_MULTIPLIER);
 
         // Night Differential Computation
@@ -378,8 +383,7 @@ function renderTable() {
   let totalPay = 0;
   let inCount = 0;
   let outCount = 0;
-  
-  // Tanging ang mga tunay na nakatala sa dtrLogs lamang ngayong araw ang iko-count
+
   const now = new Date();
   const todayStr = `${now.getMonth() + 1}/${now.getDate()}/${now.getFullYear()}`;
 
