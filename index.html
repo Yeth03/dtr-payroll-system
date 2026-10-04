@@ -269,21 +269,23 @@
       background: rgba(0, 242, 254, 0.08);
     }
 
-    /* DELETE BUTTON STYLING */
+    /* STYLING NG DELETE BUTTON */
     .btn-delete {
-      background: rgba(255, 95, 86, 0.2);
-      color: #ff5f56;
-      border: 1px solid #ff5f56;
-      padding: 3px 6px;
-      border-radius: 3px;
-      font-size: 9px;
-      cursor: pointer;
-      font-weight: bold;
+      background: rgba(255, 95, 86, 0.2) !important;
+      color: #ff5f56 !important;
+      border: 1px solid #ff5f56 !important;
+      padding: 3px 6px !important;
+      border-radius: 3px !important;
+      font-size: 10px !important;
+      font-weight: bold !important;
+      cursor: pointer !important;
+      line-height: 1 !important;
+      display: inline-block !important;
     }
 
     .btn-delete:hover {
-      background: #ff5f56;
-      color: #ffffff;
+      background: #ff5f56 !important;
+      color: #ffffff !important;
     }
   </style>
 </head>
@@ -409,7 +411,7 @@
                 <th>Out</th>
                 <th>Work</th>
                 <th>Pay</th>
-                <th>Act</th> <!-- IDINAGDAG ANG HEADER COLUMN PARA SA DELETE BUTTON -->
+                <th>Act</th> <!-- DITO LALABAS ANG HEADER PARA SA DELETE BUTTON -->
               </tr>
             </thead>
             <tbody id="dtrTableBody"></tbody>
