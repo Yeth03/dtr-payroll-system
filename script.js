@@ -128,7 +128,7 @@ function showToast(msg, type = 'success') {
   }, 2000);
 }
 
-// 6. LOG PROCESSING (MAY BAWAS NA 1 HOUR UNPAID BREAKTIME)
+// 6. LOG PROCESSING (WITH 1-HR UNPAID BREAK & 25% OVERTIME COMPUTATION)
 function processLogs() {
   const rawLogs = getLogs();
   const paired = [];
@@ -160,18 +160,32 @@ function processLogs() {
         let totalHours = diffMs > 0 ? (diffMs / (1000 * 60 * 60)) : 0;
         
         // UNPAID BREAKTIME LOGIC:
-        // Kung lumagpas sa 5 oras ang rendering, magbabawas ng 1 hr para sa break.
+        // Babawasan ng 1 oras na break kapag 5 oras o pataas ang render
         let paidHours = totalHours;
         if (totalHours >= 5) {
           paidHours = Math.max(0, totalHours - 1);
         }
 
-        const hoursWorkedStr = paidHours.toFixed(2);
-
-        // BASIC RATE CONFIGURATION (₱755/day = ₱94.375/hr)
+        // RATES CONFIGURATION
         const dailyRate = 755;
-        const hourlyRate = dailyRate / 8;
-        const computedPay = (paidHours * hourlyRate).toFixed(2);
+        const regularHourlyRate = dailyRate / 8;        // ₱94.375 / hr
+        const otHourlyRate = regularHourlyRate * 1.25; // ₱117.96875 / hr (25% OT rate)
+
+        let regHours = 0;
+        let otHours = 0;
+
+        if (paidHours > 8) {
+          regHours = 8;
+          otHours = paidHours - 8;
+        } else {
+          regHours = paidHours;
+          otHours = 0;
+        }
+
+        // SALARY COMPUTATION
+        const regPay = regHours * regularHourlyRate;
+        const otPay = otHours * otHourlyRate;
+        const totalComputedPay = (regPay + otPay).toFixed(2);
 
         const dateStr = currentIn.timestamp.split('T')[0];
 
@@ -182,8 +196,8 @@ function processLogs() {
           date: dateStr,
           timeIn: timeIn.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
           timeOut: timeOut.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          hoursWorked: hoursWorkedStr,
-          computedPay: computedPay
+          hoursWorked: paidHours.toFixed(2),
+          computedPay: totalComputedPay
         });
 
         currentIn = null; // Reset
