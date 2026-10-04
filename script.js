@@ -275,11 +275,14 @@ function processDTRPairs() {
         let excessHrs = Math.max(0, actualWorkHrs - REGULAR_HOURS_PER_DAY);
 
         // =========================================================
-        // 15-MINUTE OVERTIME THRESHOLD RULE (0.25 hrs)
+        // STRICT 30-MINUTE / 1-HOUR OVERTIME STEP RULE
+        // (0-29 mins excess = DISCARDED / 0 hr OT)
+        // (30-59 mins excess = 0.5 hr OT)
+        // (60 mins excess = 1.0 hr OT)
         // =========================================================
         let paidOtHrs = 0;
-        if (excessHrs >= 0.25) { // At least 15 minutes
-          paidOtHrs = Math.floor(excessHrs * 4) / 4; // Floors to nearest 0.25 hr (15 mins)
+        if (excessHrs >= 0.5) { 
+          paidOtHrs = Math.floor(excessHrs * 2) / 2; // Rounds down to nearest 0.5 hr (30 mins)
         }
 
         const dayMultiplier = DAY_MULTIPLIERS[inLog.dayType] || 1.00;
