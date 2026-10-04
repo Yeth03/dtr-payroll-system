@@ -2,8 +2,8 @@
 const BASIC_DAILY_RATE = 755.00;
 const REGULAR_HOURS_PER_DAY = 8;
 
-// Rounded off sa 2 decimal places ang hourly rate para maiwasan ang sobrang piso sa OT
-const BASIC_HOURLY_RATE = Math.floor((BASIC_DAILY_RATE / REGULAR_HOURS_PER_DAY) * 100) / 100; // 94.37
+// Gamitin ang eksaktong rate (94.375) nang walang truncation o rounding off
+const BASIC_HOURLY_RATE = BASIC_DAILY_RATE / REGULAR_HOURS_PER_DAY; 
 const OVERTIME_MULTIPLIER = 1.25;
 const NIGHT_DIFF_MULTIPLIER = 0.10; 
 
@@ -217,14 +217,12 @@ function processDTRPairs() {
         const dayMultiplier = DAY_MULTIPLIERS[inLog.dayType] || 1.00;
         const effectiveHourlyRate = BASIC_HOURLY_RATE * dayMultiplier;
 
-        // Computation ng Pay
-        const regPay = (regHrs / REGULAR_HOURS_PER_DAY) === 1 ? (BASIC_DAILY_RATE * dayMultiplier) : (regHrs * effectiveHourlyRate);
+        // Eksaktong kwenta kasama ang mga butal
+        const regPay = regHrs * effectiveHourlyRate;
         const otPay = otHrs * (effectiveHourlyRate * OVERTIME_MULTIPLIER);
         const ndPay = ndHrs * (effectiveHourlyRate * NIGHT_DIFF_MULTIPLIER);
 
-        // Naka-floor / rounded down sa piso para pumalo sa exact 1,108
-        const totalCalculatedPay = Math.floor(regPay + otPay + ndPay);
-
+        const exactPay = regPay + otPay + ndPay;
         const creditedWorkHrs = regHrs + otHrs;
 
         pairedData.push({
@@ -238,7 +236,7 @@ function processDTRPairs() {
           timeOutStr: timeOut.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
           rawDate: timeIn,
           workHrs: creditedWorkHrs,
-          computedPay: totalCalculatedPay
+          computedPay: exactPay
         });
       } else {
         const timeOut = new Date(log.timestamp);
