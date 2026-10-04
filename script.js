@@ -143,20 +143,27 @@ function deletePairLogs(inId, outId) {
   }
 }
 
-// Night Differential calculation (10:00 PM to 6:00 AM window)
+// Night Differential Calculation (10:00 PM to 6:00 AM)
 function calculateNightDiffHours(timeIn, timeOut) {
   let ndMinutes = 0;
   let current = new Date(timeIn.getTime());
 
   while (current < timeOut) {
     let hour = current.getHours();
+    // Pagitan ng 10:00 PM (22:00) at 6:00 AM (06:00)
     if (hour >= 22 || hour < 6) {
       ndMinutes += 1;
     }
     current.setMinutes(current.getMinutes() + 1);
   }
 
-  return ndMinutes / 60;
+  // Bawas 1 hr break sa ND kapag sumakop sa buong gabi
+  let totalND = ndMinutes / 60;
+  if (totalND > 5) {
+    totalND -= 1; // 1 hr break deduction
+  }
+
+  return Math.max(0, totalND);
 }
 
 function processDTRPairs() {
@@ -195,17 +202,17 @@ function processDTRPairs() {
         const timeIn = new Date(inLog.timestamp);
         const timeOut = new Date(log.timestamp);
 
-        // Total hours between IN and OUT
+        // Total hours pagitan ng IN at OUT
         let totalElapsedHrs = (timeOut - timeIn) / (1000 * 60 * 60);
         
-        // Net work hours (minus 1 hr break if > 5 hrs duration)
+        // Bawas 1 hour unpaid break kapag higit 5 hours ang rendering
         let actualWorkHrs = totalElapsedHrs > 5 ? totalElapsedHrs - 1 : totalElapsedHrs;
         if (actualWorkHrs < 0) actualWorkHrs = 0;
 
-        // Regular Work Hours (Max 8 hrs)
+        // Regular Work Hours (Maximum 8 hrs)
         let regHrs = Math.min(actualWorkHrs, REGULAR_HOURS_PER_DAY);
         
-        // Raw Overtime Hours (Lagpas sa 8 hrs)
+        // Overtime Hours (Sobra sa 8 hrs)
         let rawOtHrs = Math.max(0, actualWorkHrs - REGULAR_HOURS_PER_DAY);
 
         // ROUND DOWN TO NEAREST 0.5 HOUR (e.g. 3.4 -> 3.0, 3.8 -> 3.5, 4.1 -> 4.0)
@@ -214,19 +221,19 @@ function processDTRPairs() {
         const dayMultiplier = DAY_MULTIPLIERS[inLog.dayType] || 1.00;
         const effectiveHourlyRate = BASIC_HOURLY_RATE * dayMultiplier;
 
-        // Basic Pay
+        // 1. Basic / Regular Pay
         let regPay = regHrs >= REGULAR_HOURS_PER_DAY ? (BASIC_DAILY_RATE * dayMultiplier) : (regHrs * effectiveHourlyRate);
         
-        // Overtime Pay base sa rounded paid OT hours (125% rate)
+        // 2. Overtime Pay (125% rate)
         let otPay = paidOtHrs * (effectiveHourlyRate * OVERTIME_MULTIPLIER);
 
-        // Night Differential Pay (Full ND count within 10 PM - 6 AM)
+        // 3. Night Differential Pay (+10% dagdag rate kapag pumatak ng 10 PM - 6 AM)
         let ndHrs = calculateNightDiffHours(timeIn, timeOut);
         let ndPay = ndHrs * (effectiveHourlyRate * NIGHT_DIFF_MULTIPLIER);
 
         const exactPay = regPay + otPay + ndPay;
 
-        // Payable work hours (8 hrs regular + credited OT)
+        // Credited Work Hours (8 hrs regular + OT)
         let creditedWorkHrs = regHrs + paidOtHrs;
 
         pairedData.push({
