@@ -8,7 +8,7 @@ const BASIC_HOURLY_RATE = BASIC_DAILY_RATE / REGULAR_HOURS_PER_DAY; // 94.375
 const OVERTIME_MULTIPLIER = 1.25;
 const NIGHT_DIFF_MULTIPLIER = 0.10; 
 
-const GRACE_PERIOD_MINUTES = 15; // Allows early in up to 15 mins before 6:00
+const GRACE_PERIOD_MINUTES = 15; 
 
 const DAY_MULTIPLIERS = {
   "REGULAR": 1.00,
@@ -192,7 +192,7 @@ function clearAllLogs() {
 }
 
 // =========================================================
-// NIGHT DIFFERENTIAL & COMPUTATION
+// NIGHT DIFFERENTIAL & COMPUTATION (FULL 8 HRS NO DEDUCTION)
 // =========================================================
 function calculateNightDiffHours(timeIn, timeOut) {
   let ndMinutes = 0;
@@ -200,16 +200,15 @@ function calculateNightDiffHours(timeIn, timeOut) {
 
   while (current < timeOut) {
     let hour = current.getHours();
+    // Night Differential Window: 10:00 PM (22) to 6:00 AM (6)
     if (hour >= 22 || hour < 6) {
       ndMinutes += 1;
     }
     current.setMinutes(current.getMinutes() + 1);
   }
 
-  let totalND = ndMinutes / 60;
-  if (totalND > 5) totalND -= 1; // Unpaid meal break during night shift
-
-  return Math.max(0, totalND);
+  // Full raw hours count without meal break deduction
+  return Math.max(0, ndMinutes / 60);
 }
 
 function processDTRPairs() {
@@ -248,40 +247,40 @@ function processDTRPairs() {
         let timeIn = new Date(inLog.timestamp);
         const timeOut = new Date(log.timestamp);
 
-        // ADJUSTED FOR 6:00 TO 6:00 SHIFTING:
+        // Standard Schedule Thresholds (6:00 AM vs 6:00 PM)
         let scheduledIn = new Date(timeIn.getTime());
         if (inLog.shift === 'AM') {
-          scheduledIn.setHours(6, 0, 0, 0);  // 6:00 AM Standard Start
+          scheduledIn.setHours(6, 0, 0, 0);
         } else if (inLog.shift === 'PM') {
-          scheduledIn.setHours(18, 0, 0, 0); // 6:00 PM Standard Start
+          scheduledIn.setHours(18, 0, 0, 0);
         }
 
-        // Grace period check for early entry (e.g. 5:57 AM adjusts to 6:00 AM)
+        // Grace Period / Early Check-in adjustment
         let diffInMins = (scheduledIn - timeIn) / (1000 * 60);
         if (diffInMins >= 0 && diffInMins <= GRACE_PERIOD_MINUTES) {
           timeIn = scheduledIn;
         }
 
-        // Total Elapsed Time in hours
+        // Total Elapsed Hours
         let totalElapsedHrs = (timeOut - timeIn) / (1000 * 60 * 60);
         if (totalElapsedHrs < 0) totalElapsedHrs = 0;
 
-        // Bawas 1 hour meal break kapag lampas 5 hours
+        // Bawas 1 hour meal break sa regular work hours kapag higit sa 5 hours
         let actualWorkHrs = totalElapsedHrs > 5 ? totalElapsedHrs - 1 : totalElapsedHrs;
 
-        // Capped at 8 hours for Regular Shift
+        // Regular Work Hours (Capped at 8 hours)
         let regHrs = Math.min(actualWorkHrs, REGULAR_HOURS_PER_DAY);
         
-        // Excess hours above 8 hours
+        // Excess Hours (Overtime)
         let excessHrs = Math.max(0, actualWorkHrs - REGULAR_HOURS_PER_DAY);
 
-        // STRICT NO-MINUTE OT: DISCARD ALL MINUTES (FLATTEN TO WHOLE HOURS)
+        // STRICT NO-MINUTE OT: DISCARD ALL MINUTES
         let paidOtHrs = Math.floor(excessHrs);
 
         const dayMultiplier = DAY_MULTIPLIERS[inLog.dayType] || 1.00;
         const effectiveHourlyRate = BASIC_HOURLY_RATE * dayMultiplier;
 
-        // Regular Pay (₱755.00 for full 8 hrs)
+        // Regular Pay
         let regPay = 0;
         if (actualWorkHrs >= REGULAR_HOURS_PER_DAY) {
           regPay = BASIC_DAILY_RATE * dayMultiplier;
@@ -292,14 +291,8 @@ function processDTRPairs() {
         // Overtime Pay
         let otPay = paidOtHrs * (effectiveHourlyRate * OVERTIME_MULTIPLIER);
 
-        // Night Differential Computation
-        let ndHrs = 0;
-        if (paidOtHrs > 0 || regHrs > 0) {
-          let creditedEndMs = timeIn.getTime() + ((regHrs + (regHrs >= 8 ? 1 : 0) + paidOtHrs) * 60 * 60 * 1000);
-          let validNDTimeOut = new Date(Math.min(timeOut.getTime(), creditedEndMs));
-          ndHrs = calculateNightDiffHours(timeIn, validNDTimeOut);
-        }
-
+        // Night Differential Pay Calculation (Full count, zero meal deduction)
+        let ndHrs = calculateNightDiffHours(timeIn, timeOut);
         let ndPay = ndHrs * (effectiveHourlyRate * NIGHT_DIFF_MULTIPLIER);
 
         const exactPay = regPay + otPay + ndPay;
@@ -392,7 +385,6 @@ function renderTable() {
     }
   });
 
-  // Updated Total Logs counter to count TODAY'S logs only
   if (document.getElementById('totalLogs')) document.getElementById('totalLogs').textContent = inCount + outCount;
   if (document.getElementById('timeInCount')) document.getElementById('timeInCount').textContent = inCount;
   if (document.getElementById('timeOutCount')) document.getElementById('timeOutCount').textContent = outCount;
