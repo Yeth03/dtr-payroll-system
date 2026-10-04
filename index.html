@@ -2,151 +2,423 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>DTR & Payroll Management System</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>RGSERVE DTR System</title>
+  
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-    body { background: #0f172a; color: #f8fafc; padding: 20px; position: relative; min-height: 100vh; }
-    
-    .container { max-width: 1050px; margin: 0 auto; background: #1e293b; border-radius: 12px; padding: 25px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
-    header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #334155; padding-bottom: 15px; margin-bottom: 20px; }
-    h1 { font-size: 24px; color: #38bdf8; }
-    .subtitle { color: #64748b; font-size: 13px; font-weight: bold; margin-top: 3px; }
-    #liveClock { font-size: 18px; font-weight: bold; color: #f59e0b; background: #0f172a; padding: 8px 14px; border-radius: 6px; border: 1px solid #334155; }
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Consolas', 'Fira Code', 'Monaco', monospace;
+      box-shadow: none !important;
+      text-shadow: none !important;
+    }
 
-    .form-card { background: #0f172a; border-radius: 8px; padding: 20px; border: 1px solid #334155; margin-bottom: 25px; }
-    .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; margin-bottom: 15px; }
-    .form-group { display: flex; flex-direction: column; gap: 6px; }
-    label { font-size: 11px; font-weight: bold; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; }
-    input, select { padding: 10px; border-radius: 6px; border: 1px solid #475569; background: #1e293b; color: #fff; font-size: 14px; outline: none; }
-    input:focus, select:focus { border-color: #38bdf8; }
-    
-    .btn-submit { width: 100%; background: #0284c7; color: white; border: none; padding: 12px; border-radius: 6px; font-weight: bold; cursor: pointer; transition: background 0.2s; }
-    .btn-submit:hover { background: #0369a1; }
+    html, body {
+      width: 100%;
+      min-height: 100vh;
+      background: linear-gradient(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.8)), 
+                  url('kali.jpg') no-repeat center center fixed;
+      background-size: cover;
+      color: #ffffff;
+      overflow-x: hidden;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+    }
 
-    .stats-bar { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; background: #0f172a; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #334155; }
-    .stat-item { text-align: center; border-right: 1px solid #334155; }
-    .stat-item:last-child { border-right: none; }
-    .stat-val { font-size: 18px; font-weight: bold; color: #38bdf8; }
-    .stat-lbl { font-size: 11px; color: #64748b; margin-top: 2px; }
+    body {
+      padding: 10px 8px;
+      font-size: 11px;
+    }
 
-    .filters { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 15px; }
-    .btn-export { background: #10b981; color: white; border: none; padding: 9px 15px; border-radius: 6px; cursor: pointer; font-weight: bold; margin-left: auto; }
-    .btn-export:hover { background: #059669; }
+    .container {
+      width: 100%;
+      max-width: 100%;
+      margin: 0 auto;
+    }
 
-    .table-responsive { overflow-x: auto; }
-    table { width: 100%; border-collapse: collapse; }
-    th, td { padding: 12px; text-align: left; border-bottom: 1px solid #334155; font-size: 13px; }
-    th { background: #0f172a; color: #94a3b8; font-weight: 600; }
-    tr:hover { background: #283548; }
+    .glass-card {
+      background: rgba(8, 14, 24, 0.75);
+      border-radius: 6px;
+      border: 1px solid rgba(0, 242, 254, 0.25);
+      padding: 10px 8px;
+      margin-bottom: 10px;
+      width: 100%;
+    }
 
-    .del-btn { background: #ef4444; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 11px; }
-    .del-btn:hover { background: #dc2626; }
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 5px;
+    }
+
+    h1 {
+      color: #00f2fe;
+      font-size: 13px;
+      letter-spacing: 0.3px;
+      line-height: 1.1;
+    }
+
+    .clock-display {
+      font-size: 10px;
+      font-weight: bold;
+      color: #00ff87;
+      background: rgba(0, 0, 0, 0.5);
+      padding: 4px 8px;
+      border-radius: 3px;
+      border: 1px solid rgba(0, 255, 135, 0.3);
+      white-space: nowrap;
+    }
+
+    /* DASHBOARD GRID */
+    .dashboard-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 5px;
+      margin-bottom: 10px;
+      width: 100%;
+    }
+
+    .card {
+      background: rgba(8, 14, 24, 0.7);
+      padding: 8px 2px;
+      border-radius: 4px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      text-align: center;
+      min-width: 0;
+    }
+
+    .card h3 {
+      font-size: 8px;
+      color: #b0bac5;
+      text-transform: uppercase;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .card .value {
+      font-size: 13px;
+      font-weight: bold;
+      color: #ffffff;
+      margin-top: 2px;
+    }
+
+    .main-content {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      width: 100%;
+    }
+
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+      width: 100%;
+    }
+
+    .form-group {
+      min-width: 0;
+    }
+
+    .label-text {
+      display: block;
+      font-size: 8.5px;
+      color: #d0d7de;
+      margin-top: 5px;
+      margin-bottom: 3px;
+      text-transform: uppercase;
+      font-weight: 600;
+    }
+
+    input, select {
+      width: 100%;
+      padding: 5px 8px;
+      height: 32px;
+      background: rgba(0, 0, 0, 0.5) !important;
+      border: 1px solid rgba(0, 242, 254, 0.3);
+      color: #00f2fe !important;
+      border-radius: 4px;
+      font-size: 10px;
+      outline: none;
+      box-sizing: border-box;
+    }
+
+    input:focus, select:focus {
+      border-color: #00ff87;
+    }
+
+    select option {
+      background-color: #0a0f1d !important;
+      color: #00f2fe !important;
+    }
+
+    .shift-presets {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 4px;
+      margin-top: 8px;
+      width: 100%;
+    }
+
+    .preset-btn {
+      width: 100%;
+      background: rgba(255, 255, 255, 0.08);
+      color: #ffffff;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      padding: 6px 2px;
+      border-radius: 3px;
+      font-size: 8.5px;
+      cursor: pointer;
+      text-align: center;
+      white-space: nowrap;
+    }
+
+    .preset-btn:active {
+      background: rgba(0, 242, 254, 0.3);
+    }
+
+    .btn {
+      width: 100%;
+      padding: 10px;
+      border: none;
+      border-radius: 4px;
+      font-weight: bold;
+      cursor: pointer;
+      margin-top: 10px;
+      font-size: 11px;
+    }
+
+    .btn-save {
+      background: #00f2fe;
+      color: #0d1117;
+    }
+
+    .btn-export {
+      background: #00ff87;
+      color: #0d1117;
+      width: auto;
+      padding: 4px 10px;
+      font-size: 9px;
+      font-weight: bold;
+      border-radius: 3px;
+    }
+
+    .filter-container {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 4px;
+      margin-bottom: 8px;
+      background: rgba(0, 0, 0, 0.3);
+      padding: 6px;
+      border-radius: 4px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      width: 100%;
+    }
+
+    .filter-item {
+      min-width: 0;
+    }
+
+    .filter-item label {
+      font-size: 8px;
+      color: #b0bac5;
+      display: block;
+      margin-bottom: 2px;
+      text-transform: uppercase;
+    }
+
+    .table-wrapper {
+      width: 100%;
+      max-height: 280px;
+      overflow-x: auto;
+      overflow-y: auto;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 4px;
+      background: rgba(0, 0, 0, 0.3);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 9px;
+      white-space: nowrap;
+    }
+
+    th, td {
+      padding: 6px 6px;
+      text-align: left;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    th {
+      position: sticky;
+      top: 0;
+      background: #0a0f1d;
+      color: #00f2fe;
+      font-weight: 600;
+      font-size: 8px;
+      text-transform: uppercase;
+      z-index: 2;
+    }
+
+    tr:hover {
+      background: rgba(0, 242, 254, 0.08);
+    }
+
+    .del-btn {
+      background: #ff5f56 !important;
+      color: #ffffff !important;
+      border: none !important;
+      padding: 3px 6px !important;
+      border-radius: 3px !important;
+      font-size: 9px !important;
+      font-weight: bold !important;
+      cursor: pointer !important;
+    }
+
+    .del-btn:hover {
+      opacity: 0.8;
+    }
   </style>
 </head>
 <body>
 
   <div class="container">
-    <header>
+    <header class="glass-card">
       <div>
-        <h1>DTR & Payroll Management</h1>
-        <div class="subtitle">Base Daily Rate: ₱755.00 / day</div>
+        <h1>RGSERVE DTR</h1>
+        <small style="color: #b0bac5; font-size: 8px;">Daily Time Record</small>
       </div>
-      <div id="liveClock">--:--:-- PM</div>
+      <div class="clock-display" id="liveClock">00:00:00 AM</div>
     </header>
 
-    <div class="form-card">
-      <form id="dtrForm">
-        <div class="form-grid">
-          <div class="form-group">
-            <label>Employee Name</label>
-            <input type="text" id="employeeName" value="Yeth Awayan" required>
+    <!-- DASHBOARD -->
+    <div class="dashboard-grid">
+      <div class="card">
+        <h3>Logs Today</h3>
+        <div class="value" id="totalLogs">0</div>
+      </div>
+      <div class="card">
+        <h3>Time In</h3>
+        <div class="value" id="timeInCount" style="color: #00ff87;">0</div>
+      </div>
+      <div class="card">
+        <h3>Time Out</h3>
+        <div class="value" id="timeOutCount" style="color: #ff5f56;">0</div>
+      </div>
+    </div>
+
+    <!-- MAIN FORM & TABLE -->
+    <div class="main-content">
+      
+      <!-- FORM SECTION -->
+      <div class="glass-card">
+        <h2 style="font-size: 11px; color: #00f2fe; margin-bottom: 4px;">Log Entry</h2>
+        <form id="dtrForm">
+          <div class="form-row">
+            <div class="form-group">
+              <label class="label-text">Employee</label>
+              <input type="text" id="employeeName" placeholder="Full Name" required>
+            </div>
+            <div class="form-group">
+              <label class="label-text">Shift</label>
+              <select id="workShift" required>
+                <option value="AM">AM Shift</option>
+                <option value="PM">PM Shift</option>
+              </select>
+            </div>
           </div>
-          <div class="form-group">
-            <label>Shift</label>
-            <select id="workShift">
-              <option value="AM">AM Shift (8:00 AM)</option>
-              <option value="PM">PM Shift (8:00 PM)</option>
-            </select>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label class="label-text">Day Type</label>
+              <select id="dayType" required>
+                <option value="REGULAR">Regular (100%)</option>
+                <option value="REST_DAY">Rest Day (130%)</option>
+                <option value="SPECIAL_HOLIDAY">Special Hol. (130%)</option>
+                <option value="REGULAR_HOLIDAY">Reg Hol. (200%)</option>
+                <option value="REST_SPECIAL">Rest Special (150%)</option>
+                <option value="REST_REGULAR">Rest Reg Hol. (260%)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="label-text">Log Type</label>
+              <select id="logType" required>
+                <option value="IN">TIME IN</option>
+                <option value="OUT">TIME OUT</option>
+              </select>
+            </div>
           </div>
+
           <div class="form-group">
-            <label>Day Type</label>
-            <select id="dayType">
-              <option value="REGULAR">Regular Day (100%)</option>
-              <option value="REST_DAY">Rest Day (130%)</option>
-              <option value="SPECIAL_HOLIDAY">Special Holiday (130%)</option>
-              <option value="REGULAR_HOLIDAY">Regular Holiday (200%)</option>
-              <option value="REST_SPECIAL">Rest Day + Special Holiday (150%)</option>
-              <option value="REST_REGULAR">Rest Day + Regular Holiday (260%)</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label>Log Type</label>
-            <select id="logType">
-              <option value="IN">TIME IN</option>
-              <option value="OUT">TIME OUT</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label>Date & Time</label>
+            <label class="label-text">Date & Time</label>
             <input type="datetime-local" id="logTimestamp" required>
           </div>
+
+          <div class="shift-presets">
+            <button type="button" class="preset-btn" onclick="setPresetTime('now')">Current</button>
+            <button type="button" class="preset-btn" onclick="setPresetTime('am')">06:00 AM</button>
+            <button type="button" class="preset-btn" onclick="setPresetTime('pm')">06:00 PM</button>
+          </div>
+
+          <button type="submit" class="btn btn-save">Save Log</button>
+        </form>
+      </div>
+
+      <!-- TABLE SECTION -->
+      <div class="glass-card">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+          <h2 style="font-size: 11px; color: #00f2fe;">Logs & Payroll</h2>
+          <button type="button" class="btn btn-export" onclick="exportDTR()">Export</button>
         </div>
-        <button type="submit" class="btn-submit">SAVE LOG ENTRY</button>
-      </form>
-    </div>
 
-    <div class="stats-bar">
-      <div class="stat-item">
-        <div class="stat-val" id="totalLogs">0</div>
-        <div class="stat-lbl">TOTAL LOGS</div>
-      </div>
-      <div class="stat-item">
-        <div class="stat-val" id="timeInCount">0</div>
-        <div class="stat-lbl">TODAY'S IN</div>
-      </div>
-      <div class="stat-item">
-        <div class="stat-val" id="timeOutCount">0</div>
-        <div class="stat-lbl">TODAY'S OUT</div>
-      </div>
-      <div class="stat-item">
-        <div class="stat-val" id="payrollOverview">Est. Work: 0.0 hrs | Pay: ₱0.00</div>
-        <div class="stat-lbl">PERIOD SUMMARY</div>
-      </div>
-    </div>
+        <div style="font-size: 9px; color: #00f2fe; margin-bottom: 6px; font-weight: bold;" id="payrollOverview">
+          Est. Work: 0.0 hrs | Pay: ₱0.00
+        </div>
 
-    <div class="filters">
-      <input type="month" id="filterMonth" onchange="renderTable()">
-      <select id="filterCutoff" onchange="renderTable()">
-        <option value="ALL">All Cutoffs</option>
-        <option value="1-15">1st Cutoff (1-15)</option>
-        <option value="16-31">2nd Cutoff (16-31)</option>
-      </select>
-      <button type="button" class="btn-export" onclick="exportDTR()">Export CSV</button>
-    </div>
+        <div class="filter-container">
+          <div class="filter-item">
+            <label>Month</label>
+            <input type="month" id="filterMonth" onchange="renderTable()">
+          </div>
+          <div class="filter-item">
+            <label>Cut-off</label>
+            <select id="filterCutoff" onchange="renderTable()">
+              <option value="ALL">Whole Month</option>
+              <option value="1-15">1st (1-15)</option>
+              <option value="16-31">2nd (16-31)</option>
+            </select>
+          </div>
+        </div>
 
-    <div class="table-responsive">
-      <table>
-        <thead>
-          <tr>
-            <th>Employee</th>
-            <th>Shift</th>
-            <th>Day Type</th>
-            <th>Date</th>
-            <th>Time In</th>
-            <th>Time Out</th>
-            <th>Work Hours</th>
-            <th>Est. Pay</th>
-            <th style="text-align: center;">Action</th>
-          </tr>
-        </thead>
-        <tbody id="dtrTableBody">
-          <!-- Rendered dynamically by script.js -->
-        </tbody>
-      </table>
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Employee</th>
+                <th>Shift</th>
+                <th>Type</th>
+                <th>Date</th>
+                <th>In</th>
+                <th>Out</th>
+                <th>Work</th>
+                <th>Pay</th>
+                <th style="text-align: center;">Act</th>
+              </tr>
+            </thead>
+            <tbody id="dtrTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+
     </div>
   </div>
 
-  <script src="script.js"></script>
+  <!-- BUST CACHE WITH ?v=9.9 -->
+  <script src="script.js?v=9.9"></script>
 </body>
 </html>
