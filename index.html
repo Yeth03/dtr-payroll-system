@@ -276,18 +276,13 @@
     const HOURLY_RATE = DAILY_RATE / 8; // 94.375 per hour
 
     function formatPST(dateInput, options = {}) {
-      return new Date(dateInput).toLocaleString('en-PH', { 
-        timeZone: 'Asia/Manila', 
-        hour12: false, // Default to Military Time (24-hour format)
-        ...options 
-      });
+      return new Date(dateInput).toLocaleString('en-PH', { timeZone: 'Asia/Manila', ...options });
     }
 
     function updateClock() {
       const now = new Date();
-      // Live clock explicitly uses hour12: true
       document.getElementById('liveClock').innerText = formatPST(now, { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
-      document.getElementById('liveDate').innerText = formatPST(now, { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric', hour12: false }).toUpperCase() + " (PST)";
+      document.getElementById('liveDate').innerText = formatPST(now, { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' }).toUpperCase() + " (PST)";
     }
     setInterval(updateClock, 1000);
     updateClock();
@@ -327,7 +322,9 @@
       
       let rawNightHours = rawNightMs / (1000 * 60 * 60);
 
+      // Kung mahigit 5 oras ang shift, ibabawas din natin ang proportional break sa night diff kung pumasok sa night window
       if (totalElapsedHours > 5 && rawNightHours > 0) {
+        // Proportionally deduct meal break if night diff covers full shift
         let breakDeduction = (rawNightHours / totalElapsedHours) * 1.0;
         return Math.max(0, rawNightHours - breakDeduction);
       }
