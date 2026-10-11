@@ -44,7 +44,8 @@ function initLiveClock() {
     const now = new Date();
     const clockEl = document.getElementById('liveClock');
     if (clockEl) {
-      clockEl.textContent = now.toLocaleTimeString('en-US', { hour12: true });
+      // Pinalitan sa 24-hour (military time) format
+      clockEl.textContent = now.toLocaleTimeString('en-GB', { hour12: false });
     }
   }, 1000);
 }
@@ -207,7 +208,6 @@ function calculateNightDiffHours(timeIn, timeOut) {
     current.setMinutes(current.getMinutes() + 1);
   }
 
-  // Full raw hours count without meal break deduction
   return Math.max(0, ndMinutes / 60);
 }
 
@@ -230,7 +230,8 @@ function processDTRPairs() {
           shift: prevIn.shift,
           dayType: prevIn.dayType,
           date: prevTime.toLocaleDateString(),
-          timeInStr: prevTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          // Nilagyan ng { hour12: false } para sa Military Time (24h)
+          timeInStr: prevTime.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false }),
           timeOutStr: '--:--',
           rawDate: prevTime,
           workHrs: 0,
@@ -247,7 +248,6 @@ function processDTRPairs() {
         let timeIn = new Date(inLog.timestamp);
         const timeOut = new Date(log.timestamp);
 
-        // Standard Schedule Thresholds (6:00 AM vs 6:00 PM)
         let scheduledIn = new Date(timeIn.getTime());
         if (inLog.shift === 'AM') {
           scheduledIn.setHours(6, 0, 0, 0);
@@ -255,32 +255,22 @@ function processDTRPairs() {
           scheduledIn.setHours(18, 0, 0, 0);
         }
 
-        // Grace Period / Early Check-in adjustment
         let diffInMins = (scheduledIn - timeIn) / (1000 * 60);
         if (diffInMins >= 0 && diffInMins <= GRACE_PERIOD_MINUTES) {
           timeIn = scheduledIn;
         }
 
-        // Total Elapsed Hours
         let totalElapsedHrs = (timeOut - timeIn) / (1000 * 60 * 60);
         if (totalElapsedHrs < 0) totalElapsedHrs = 0;
 
-        // Bawas 1 hour meal break sa regular work hours kapag higit sa 5 hours
         let actualWorkHrs = totalElapsedHrs > 5 ? totalElapsedHrs - 1 : totalElapsedHrs;
-
-        // Regular Work Hours (Capped at 8 hours)
         let regHrs = Math.min(actualWorkHrs, REGULAR_HOURS_PER_DAY);
-        
-        // Excess Hours (Overtime)
         let excessHrs = Math.max(0, actualWorkHrs - REGULAR_HOURS_PER_DAY);
-
-        // STRICT NO-MINUTE OT: DISCARD ALL MINUTES
         let paidOtHrs = Math.floor(excessHrs);
 
         const dayMultiplier = DAY_MULTIPLIERS[inLog.dayType] || 1.00;
         const effectiveHourlyRate = BASIC_HOURLY_RATE * dayMultiplier;
 
-        // Regular Pay
         let regPay = 0;
         if (actualWorkHrs >= REGULAR_HOURS_PER_DAY) {
           regPay = BASIC_DAILY_RATE * dayMultiplier;
@@ -288,10 +278,7 @@ function processDTRPairs() {
           regPay = regHrs * effectiveHourlyRate;
         }
 
-        // Overtime Pay
         let otPay = paidOtHrs * (effectiveHourlyRate * OVERTIME_MULTIPLIER);
-
-        // Night Differential Pay Calculation (Full count, zero meal deduction)
         let ndHrs = calculateNightDiffHours(timeIn, timeOut);
         let ndPay = ndHrs * (effectiveHourlyRate * NIGHT_DIFF_MULTIPLIER);
 
@@ -305,8 +292,9 @@ function processDTRPairs() {
           shift: inLog.shift,
           dayType: inLog.dayType,
           date: timeIn.toLocaleDateString(),
-          timeInStr: new Date(inLog.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          timeOutStr: timeOut.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          // Nilagyan ng { hour12: false } para sa Military Time (24h)
+          timeInStr: new Date(inLog.timestamp).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false }),
+          timeOutStr: timeOut.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false }),
           rawDate: timeIn,
           workHrs: creditedWorkHrs,
           otHrs: paidOtHrs,
@@ -322,7 +310,8 @@ function processDTRPairs() {
           dayType: log.dayType,
           date: timeOut.toLocaleDateString(),
           timeInStr: '--:--',
-          timeOutStr: timeOut.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          // Nilagyan ng { hour12: false } para sa Military Time (24h)
+          timeOutStr: timeOut.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false }),
           rawDate: timeOut,
           workHrs: 0,
           otHrs: 0,
@@ -342,7 +331,8 @@ function processDTRPairs() {
       shift: inLog.shift,
       dayType: inLog.dayType,
       date: timeIn.toLocaleDateString(),
-      timeInStr: timeIn.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      // Nilagyan ng { hour12: false } para sa Military Time (24h)
+      timeInStr: timeIn.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false }),
       timeOutStr: 'Pending OUT',
       rawDate: timeIn,
       workHrs: 0,
